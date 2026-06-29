@@ -4,11 +4,11 @@ A lightweight record of significant technical decisions (ADR-style). Each entry
 captures the **context**, the **decision**, and its **consequences** so future
 contributors understand *why* the project looks the way it does.
 
-> Status legend: ✅ Accepted · 🔁 Superseded · 💭 Proposed
+Each decision below is **Accepted** unless noted otherwise.
 
 ---
 
-## 1. Flutter for the mobile app — ✅ Accepted
+## 1. Flutter for the mobile app
 
 **Context.** The goal is a "modern mobile app" that runs on both iOS and Android
 from a single codebase, built quickly by a small team.
@@ -22,7 +22,7 @@ native `android/`/`ios/` folders are generated locally (not committed) via
 
 ---
 
-## 2. Supabase as the backend — ✅ Accepted
+## 2. Supabase as the backend
 
 **Context.** The watchlist must persist beyond a single session and be able to
 sync across devices later, without us hand-rolling a server.
@@ -36,7 +36,7 @@ network connectivity; introduces a vendor dependency.
 
 ---
 
-## 3. Anonymous auth for v1 — ✅ Accepted
+## 3. Anonymous auth for v1
 
 **Context.** We want zero sign-up friction, but Supabase RLS needs an authenticated
 user to own rows.
@@ -52,7 +52,7 @@ Supabase dashboard.
 
 ---
 
-## 4. Jikan API for anime data — ✅ Accepted
+## 4. Jikan API for anime data
 
 **Context.** We need anime titles, cover images, and episode counts for search.
 
@@ -65,7 +65,7 @@ results are de-duplicated by `mal_id`.
 
 ---
 
-## 5. `provider` for state management — ✅ Accepted
+## 5. `provider` for state management
 
 **Context.** Watchlist state must be shared across the home and search screens and
 react to mutations.
@@ -79,7 +79,7 @@ migrate later if the app grows.
 
 ---
 
-## 6. Config via `.env`; native folders not committed — ✅ Accepted
+## 6. Config via `.env`; native folders not committed
 
 **Context.** Supabase credentials must not be committed, and generated platform
 code bloats the repo.

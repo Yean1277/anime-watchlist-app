@@ -5,11 +5,11 @@ backed by **Supabase**, with anime data from the free **Jikan API** (MyAnimeList
 
 ## Features
 
-- 🔍 **Search** anime by title (Jikan / MyAnimeList) with cover art and episode counts.
-- 📋 **Status tracking** — tag each anime as *Plan to Watch*, *Watching*, *Completed*,
+- **Search** anime by title (Jikan / MyAnimeList) with cover art and episode counts.
+- **Status tracking** — tag each anime as *Plan to Watch*, *Watching*, *Completed*,
   or *Dropped*, and filter by status with tabs.
-- ☁️ **Cloud-synced** watchlist stored in Supabase (Postgres + Row Level Security).
-- 👤 **No sign-up** — anonymous auth gives each device its own private list automatically.
+- **Cloud-synced** watchlist stored in Supabase (Postgres + Row Level Security).
+- **No sign-up** — anonymous auth gives each device its own private list automatically.
 
 ## Tech stack
 
