@@ -113,8 +113,8 @@ Pick a connected device, emulator, or simulator.
 ## 5. Verify it works (end-to-end)
 
 1. **Search** — tap **Add anime**, type e.g. `naruto`, see results with covers.
-2. **Add** — tap ➕ on a result; a snackbar confirms it was added.
-3. **Status** — back on the home screen, use the ✎ menu on a card to change its
+2. **Add** — tap the add button on a result; a snackbar confirms it was added.
+3. **Status** — back on the home screen, use the edit menu on a card to change its
    status; confirm it moves between the **Watching / Plan to Watch / Completed /
    Dropped** tabs.
 4. **Persistence** — fully close and reopen the app; your list should reload
