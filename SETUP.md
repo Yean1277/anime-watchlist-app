@@ -46,8 +46,11 @@ create table public.watchlist (
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   mal_id integer not null,
   title text not null,
+  title_japanese text,
   image_url text,
   episodes integer,
+  episodes_watched integer not null default 0,
+  score integer check (score between 1 and 5),
   status text not null default 'plan_to_watch'
     check (status in ('plan_to_watch','watching','completed','dropped')),
   created_at timestamptz not null default now(),
@@ -65,6 +68,16 @@ create policy "own rows - update" on public.watchlist
 create policy "own rows - delete" on public.watchlist
   for delete using (auth.uid() = user_id);
 ```
+
+> **Upgrading an existing table?** If you created the `watchlist` table before
+> the redesign, add the new columns instead of recreating it:
+>
+> ```sql
+> alter table public.watchlist
+>   add column if not exists title_japanese text,
+>   add column if not exists episodes_watched integer not null default 0,
+>   add column if not exists score integer check (score between 1 and 5);
+> ```
 
 The `user_id` column defaults to `auth.uid()`, so inserts from the app don't
 need to send it, and RLS guarantees each user only sees their own rows.

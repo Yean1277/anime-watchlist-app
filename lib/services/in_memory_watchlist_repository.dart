@@ -6,10 +6,12 @@ import 'watchlist_repository.dart';
 /// credentials are configured). State lives only in memory and resets on reload.
 ///
 /// Starts empty but is fully functional: Jikan search still works, and items
-/// can be added, re-statused, and removed.
+/// can be added, re-statused, progressed, rated, and removed.
 class InMemoryWatchlistRepository implements WatchlistRepository {
   final List<WatchlistItem> _items = [];
   int _counter = 0;
+
+  int _indexOf(String id) => _items.indexWhere((i) => i.id == id);
 
   @override
   Future<List<WatchlistItem>> fetchAll() async => List.of(_items);
@@ -20,8 +22,10 @@ class InMemoryWatchlistRepository implements WatchlistRepository {
       id: 'demo-${_counter++}',
       malId: anime.malId,
       title: anime.title,
+      titleJapanese: anime.titleJapanese,
       imageUrl: anime.imageUrl,
       episodes: anime.episodes,
+      episodesWatched: 0,
       status: status,
     );
     _items.insert(0, item);
@@ -30,9 +34,26 @@ class InMemoryWatchlistRepository implements WatchlistRepository {
 
   @override
   Future<void> updateStatus(String id, WatchStatus status) async {
-    final index = _items.indexWhere((i) => i.id == id);
+    final index = _indexOf(id);
     if (index != -1) {
       _items[index] = _items[index].copyWith(status: status);
+    }
+  }
+
+  @override
+  Future<void> updateProgress(String id, int episodesWatched) async {
+    final index = _indexOf(id);
+    if (index != -1) {
+      _items[index] = _items[index].copyWith(episodesWatched: episodesWatched);
+    }
+  }
+
+  @override
+  Future<void> updateScore(String id, int? score) async {
+    final index = _indexOf(id);
+    if (index != -1) {
+      _items[index] = _items[index]
+          .copyWith(score: score, clearScore: score == null);
     }
   }
 

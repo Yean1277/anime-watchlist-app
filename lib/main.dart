@@ -3,11 +3,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'providers/theme_provider.dart';
 import 'providers/watchlist_provider.dart';
 import 'services/in_memory_watchlist_repository.dart';
 import 'services/watchlist_repository.dart';
 import 'services/watchlist_service.dart';
-import 'screens/watchlist_screen.dart';
+import 'screens/home_shell.dart';
 import 'theme.dart';
 
 // Optional build-time config (e.g. `flutter build web --dart-define=SUPABASE_URL=...`).
@@ -38,7 +39,14 @@ Future<void> main() async {
     repository = InMemoryWatchlistRepository();
   }
 
-  runApp(AnimeWatchlistApp(repository: repository, demoMode: !configured));
+  final themeProvider = ThemeProvider();
+  await themeProvider.load();
+
+  runApp(AnimeWatchlistApp(
+    repository: repository,
+    demoMode: !configured,
+    themeProvider: themeProvider,
+  ));
 }
 
 /// Loads `.env` if present; returns an empty map when it's missing (demo mode).
@@ -65,23 +73,33 @@ bool _looksConfigured(String url, String anonKey) {
 class AnimeWatchlistApp extends StatelessWidget {
   final WatchlistRepository repository;
   final bool demoMode;
+  final ThemeProvider themeProvider;
 
   const AnimeWatchlistApp({
     super.key,
     required this.repository,
     required this.demoMode,
+    required this.themeProvider,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) =>
-          WatchlistProvider(repository, demoMode: demoMode)..load(),
-      child: MaterialApp(
-        title: 'Anime Watchlist',
-        debugShowCheckedModeBanner: false,
-        theme: buildAppTheme(),
-        home: const WatchlistScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider(
+          create: (_) => WatchlistProvider(repository, demoMode: demoMode)..load(),
+        ),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, theme, _) => MaterialApp(
+          title: 'Anime Watchlist',
+          debugShowCheckedModeBanner: false,
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: theme.mode,
+          home: const HomeShell(),
+        ),
       ),
     );
   }

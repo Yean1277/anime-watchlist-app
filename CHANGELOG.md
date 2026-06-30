@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Redesigned Library screen** with a bold header, scrollable status filter
+  pills, and refreshed cards (gradient/kanji cover with real Jikan art fallback,
+  Japanese subtitle, status pill, episode progress, and star rating).
+- **Bottom navigation shell** with four tabs (Library built; Discover, Stats,
+  You are styled "coming soon" placeholders).
+- **Dark mode** with a header toggle, persisted via `shared_preferences`
+  (`ThemeProvider`).
+- **Episode progress and 1–5 star ratings** per title, edited from a new detail
+  bottom sheet; new `title_japanese`, `episodes_watched`, and `score` columns
+  (migration noted in SETUP.md).
+
+### Changed
+- Status pill palette refreshed (Plan purple / Watching green / Completed blue
+  / Dropped red).
+
+### Earlier in this cycle
 - Project documentation set:
   - `CLAUDE.md` — guidance for AI/dev sessions (commands, architecture, conventions).
   - `CHANGELOG.md` — this file.
