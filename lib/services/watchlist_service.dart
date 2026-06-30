@@ -30,8 +30,10 @@ class WatchlistService implements WatchlistRepository {
     final payload = {
       'mal_id': anime.malId,
       'title': anime.title,
+      'title_japanese': anime.titleJapanese,
       'image_url': anime.imageUrl,
       'episodes': anime.episodes,
+      'episodes_watched': 0,
       'status': status.dbValue,
     };
     final inserted = await _table.insert(payload).select().single();
@@ -41,6 +43,16 @@ class WatchlistService implements WatchlistRepository {
   @override
   Future<void> updateStatus(String id, WatchStatus status) async {
     await _table.update({'status': status.dbValue}).eq('id', id);
+  }
+
+  @override
+  Future<void> updateProgress(String id, int episodesWatched) async {
+    await _table.update({'episodes_watched': episodesWatched}).eq('id', id);
+  }
+
+  @override
+  Future<void> updateScore(String id, int? score) async {
+    await _table.update({'score': score}).eq('id', id);
   }
 
   @override
