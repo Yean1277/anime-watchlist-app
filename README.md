@@ -55,3 +55,32 @@ Run the unit tests with:
 ```bash
 flutter test
 ```
+
+## Viewing the UI (web / demo mode)
+
+Flutter also compiles to the web, so you can preview the UI in a browser
+without a phone or emulator.
+
+**Demo mode:** when no Supabase credentials are configured, the app boots into
+**demo mode** — it starts with an empty watchlist, shows a banner, and lets you
+search (real Jikan API) and add/edit/remove items in memory only (changes reset
+on reload). This makes it easy to look at the UI before wiring up a backend.
+
+Run it locally in a browser:
+
+```bash
+flutter create --platforms=web --org com.example .
+git checkout -- lib/ pubspec.yaml
+touch .env            # empty file = demo mode (it's a declared asset)
+flutter pub get
+flutter run -d chrome
+```
+
+**Live on GitHub Pages:** the workflow at
+[`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml) builds the
+web app and deploys it on every push. One-time setup: in the repo, go to
+**Settings → Pages → Build and deployment → Source → GitHub Actions**. After the
+workflow runs, the UI is live at
+`https://<owner>.github.io/anime-watchlist-app/` (demo mode). To deploy a
+backend-connected build instead, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` as
+repository **Secrets** and the workflow will use them.

@@ -1,0 +1,74 @@
+name: Deploy web to GitHub Pages
+
+# Builds the Flutter app for web and publishes it to GitHub Pages so the UI
+# can be viewed in a browser. Runs in demo mode unless Supabase credentials
+# are supplied via repository secrets (see below).
+on:
+  push:
+    branches:
+      - main
+      - claude/anime-watchlist-app-i3vgx0
+  workflow_dispatch:
+
+# Required for actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; let the newest win.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # Generate the git-ignored web/ platform folder. `flutter create` also
+      # overwrites lib/main.dart and pubspec.yaml, so restore the repo versions.
+      - name: Generate web platform files
+        run: |
+          flutter create --platforms=web --org com.example .
+          git checkout -- lib/ pubspec.yaml
+
+      # `.env` is a declared asset and must exist at build time. Inject secrets
+      # if present (real backend); otherwise an empty file keeps demo mode.
+      - name: Create .env
+        run: |
+          {
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}"
+            echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}"
+          } > .env
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # base-href must match the repo name for project Pages
+      # (https://<owner>.github.io/anime-watchlist-app/).
+      - name: Build web
+        run: flutter build web --release --base-href "/anime-watchlist-app/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

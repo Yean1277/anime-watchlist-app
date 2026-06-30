@@ -2,14 +2,17 @@ import 'package:flutter/foundation.dart';
 
 import '../models/anime.dart';
 import '../models/watchlist_item.dart';
-import '../services/watchlist_service.dart';
+import '../services/watchlist_repository.dart';
 
-/// Holds the user's watchlist in memory and keeps Supabase in sync.
+/// Holds the user's watchlist in memory and keeps the backing
+/// [WatchlistRepository] (Supabase or in-memory demo) in sync.
 class WatchlistProvider extends ChangeNotifier {
-  final WatchlistService _service;
+  final WatchlistRepository _repository;
 
-  WatchlistProvider([WatchlistService? service])
-      : _service = service ?? WatchlistService();
+  /// True when running without Supabase credentials (data is not persisted).
+  final bool demoMode;
+
+  WatchlistProvider(this._repository, {this.demoMode = false});
 
   List<WatchlistItem> _items = [];
   bool _loading = false;
@@ -32,7 +35,7 @@ class WatchlistProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _items = await _service.fetchAll();
+      _items = await _repository.fetchAll();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -45,7 +48,7 @@ class WatchlistProvider extends ChangeNotifier {
   Future<void> add(Anime anime,
       {WatchStatus status = WatchStatus.planToWatch}) async {
     if (contains(anime.malId)) return;
-    final item = await _service.add(anime, status);
+    final item = await _repository.add(anime, status);
     _items = [item, ..._items];
     notifyListeners();
   }
@@ -60,7 +63,7 @@ class WatchlistProvider extends ChangeNotifier {
     _items[index] = previous.copyWith(status: status);
     notifyListeners();
     try {
-      await _service.updateStatus(item.id, status);
+      await _repository.updateStatus(item.id, status);
     } catch (e) {
       _items[index] = previous;
       _error = e.toString();
@@ -77,7 +80,7 @@ class WatchlistProvider extends ChangeNotifier {
     _items.removeAt(index);
     notifyListeners();
     try {
-      await _service.remove(item.id);
+      await _repository.remove(item.id);
     } catch (e) {
       _items.insert(index, removed);
       _error = e.toString();

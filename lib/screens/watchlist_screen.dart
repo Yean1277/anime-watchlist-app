@@ -33,22 +33,31 @@ class WatchlistScreen extends StatelessWidget {
             tabs: _tabs.map((s) => Tab(text: _tabLabel(s))).toList(),
           ),
         ),
-        body: Consumer<WatchlistProvider>(
-          builder: (context, provider, _) {
-            if (provider.loading && provider.items.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (provider.error != null && provider.items.isEmpty) {
-              return _ErrorState(
-                message: provider.error!,
-                onRetry: provider.load,
-              );
-            }
-            return TabBarView(
-              children:
-                  _tabs.map((status) => _StatusList(status: status)).toList(),
-            );
-          },
+        body: Column(
+          children: [
+            if (context.watch<WatchlistProvider>().demoMode)
+              const _DemoBanner(),
+            Expanded(
+              child: Consumer<WatchlistProvider>(
+                builder: (context, provider, _) {
+                  if (provider.loading && provider.items.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (provider.error != null && provider.items.isEmpty) {
+                    return _ErrorState(
+                      message: provider.error!,
+                      onRetry: provider.load,
+                    );
+                  }
+                  return TabBarView(
+                    children: _tabs
+                        .map((status) => _StatusList(status: status))
+                        .toList(),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => Navigator.of(context).push(
@@ -56,6 +65,40 @@ class WatchlistScreen extends StatelessWidget {
           ),
           icon: const Icon(Icons.add),
           label: const Text('Add anime'),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the app runs without Supabase credentials. Makes it obvious that
+/// changes are not saved.
+class _DemoBanner extends StatelessWidget {
+  const _DemoBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline,
+                size: 18, color: scheme.onTertiaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Demo mode — no backend connected. Search and edits work but '
+                'are not saved (they reset on reload).',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: scheme.onTertiaryContainer,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

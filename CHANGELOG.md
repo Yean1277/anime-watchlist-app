@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `CHANGELOG.md` — this file.
   - `docs/DECISIONS.md` — ADR-style log of key technical decisions.
   - `docs/ARCHITECTURE.md` — layered architecture, data flows, data & security model.
+- **Demo mode**: the app now runs without Supabase credentials, using an
+  in-memory store so the UI is browsable (starts empty, changes don't persist).
+  A `WatchlistRepository` interface backs both the Supabase and in-memory stores,
+  and a banner indicates when demo mode is active.
+- **Web deployment**: `.github/workflows/deploy-web.yml` builds the Flutter web
+  app and publishes it to GitHub Pages (demo mode by default; optional
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY` secrets enable a connected build).
+- Optional `--dart-define` support for Supabase config (alternative to `.env`).
+
+### Changed
+- `main.dart` now detects whether Supabase is configured and selects the backend
+  accordingly; `.env` is optional at runtime.
 
 ## [0.1.0] - 2026-06-29
 
