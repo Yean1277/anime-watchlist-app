@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'coming_soon_screen.dart';
+import 'discover_screen.dart';
 import 'library_screen.dart';
+import 'profile_screen.dart';
+import 'stats_screen.dart';
 
 /// The app's top-level shell: a persistent bottom navigation bar over the four
-/// tabs. Only Library is fully built; the rest are styled placeholders.
+/// tabs.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -17,21 +19,9 @@ class _HomeShellState extends State<HomeShell> {
 
   static const _tabs = [
     LibraryScreen(),
-    ComingSoonScreen(
-      title: 'Discover',
-      subtitle: "What's everyone bingeing this cour",
-      icon: Icons.explore_outlined,
-    ),
-    ComingSoonScreen(
-      title: 'Stats',
-      subtitle: 'Your watch habits, visualized',
-      icon: Icons.bar_chart_rounded,
-    ),
-    ComingSoonScreen(
-      title: 'You',
-      subtitle: 'Profile & settings',
-      icon: Icons.person_outline_rounded,
-    ),
+    DiscoverScreen(),
+    StatsScreen(),
+    ProfileScreen(),
   ];
 
   @override

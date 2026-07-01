@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Discover tab**: top-airing ranking from Jikan with a spotlight hero, genre
+  filters, a search entry point, and one-tap add to the watchlist.
+- **Stats tab**: summary cards (episodes watched, watch time, currently
+  watching, finished) and a per-status breakdown, computed from the watchlist.
+- **You tab**: profile summary with shows-tracked / episodes-logged counts, an
+  appearance (dark mode) toggle, and an about dialog.
+- Shared `ScreenHeader` / `DarkModeButton` widgets; `Anime` now parses genres
+  and airing status; `JikanService.topAiring()`.
 - **Redesigned Library screen** with a bold header, scrollable status filter
   pills, and refreshed cards (gradient/kanji cover with real Jikan art fallback,
   Japanese subtitle, status pill, episode progress, and star rating).
