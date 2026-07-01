@@ -17,7 +17,16 @@ class JikanService {
     final uri = Uri.parse(
       '$_base/anime?q=${Uri.encodeQueryComponent(trimmed)}&limit=20&sfw=true',
     );
+    return _fetchList(uri);
+  }
 
+  /// Returns the current top-ranked airing anime (for the Discover tab).
+  Future<List<Anime>> topAiring({int limit = 25}) async {
+    final uri = Uri.parse('$_base/top/anime?filter=airing&limit=$limit&sfw=true');
+    return _fetchList(uri);
+  }
+
+  Future<List<Anime>> _fetchList(Uri uri) async {
     final response = await http.get(uri);
     if (response.statusCode != 200) {
       throw Exception('Jikan API error: ${response.statusCode}');
