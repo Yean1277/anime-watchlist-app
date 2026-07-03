@@ -78,13 +78,18 @@ The UI never talks to the network directly. It reads from / calls
 - Native `android/`/`ios/` folders are git-ignored and regenerated via
   `flutter create` (see Commands).
 
-## Branch
+## Branching
 
-Active development branch: `claude/anime-watchlist-app-i3vgx0`.
+This repo follows **GitHub Flow**: `main` is always deployable, and all work happens
+on short-lived, category-prefixed branches merged via PR — no long-lived `develop`
+branch. Name branches `<category>/<short-kebab-description>` using the same
+categories as commits (`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`,
+`ci/`). Full rules in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation map
 
 - [README.md](README.md) — overview & quickstart
+- [CONTRIBUTING.md](CONTRIBUTING.md) — branching convention & PR workflow
 - [SETUP.md](SETUP.md) — full setup + end-to-end verification
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — technical deep dive
 - [docs/DECISIONS.md](docs/DECISIONS.md) — why the key choices were made

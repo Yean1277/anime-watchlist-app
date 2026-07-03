@@ -84,3 +84,9 @@ workflow runs, the UI is live at
 `https://<owner>.github.io/anime-watchlist-app/` (demo mode). To deploy a
 backend-connected build instead, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` as
 repository **Secrets** and the workflow will use them.
+
+## Contributing
+
+This project uses **GitHub Flow** with category-prefixed branches
+(`feat/`, `fix/`, `docs/`, …). See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+branch-naming convention and pull-request workflow.
