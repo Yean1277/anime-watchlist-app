@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../models/anime.dart';
-import '../providers/watchlist_provider.dart';
 import '../services/jikan_service.dart';
 import '../theme.dart';
+import '../widgets/add_to_list_button.dart';
 import '../widgets/cover_tile.dart';
+import '../widgets/filter_pill.dart';
 import '../widgets/screen_header.dart';
+import '../widgets/section_label.dart';
 import 'search_screen.dart';
 
 /// Discover tab: a search entry point, genre filters, a spotlight hero, and the
@@ -144,25 +145,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         itemBuilder: (context, i) {
           final g = genres[i];
           final isAll = g == 'All';
-          final selected = isAll ? _genre == null : _genre == g;
-          final scheme = Theme.of(context).colorScheme;
-          return GestureDetector(
+          return FilterPill(
+            label: g,
+            selected: isAll ? _genre == null : _genre == g,
             onTap: () => setState(() => _genre = isAll ? null : g),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? kAccent : cardColorFor(context),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Text(
-                g,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
           );
         },
       ),
@@ -170,7 +156,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _spotlight(BuildContext context, Anime anime) {
-    final added = context.watch<WatchlistProvider>().contains(anime.malId);
     final genre = anime.genres.isNotEmpty ? anime.genres.first.toUpperCase() : 'SPOTLIGHT';
 
     return Padding(
@@ -237,7 +222,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                             ),
                           ),
                         ),
-                        _AddButton(anime: anime, added: added, big: true),
+                        AddToListButton(anime: anime, big: true),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -245,7 +230,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       children: [
                         if (anime.score != null) ...[
                           const Icon(Icons.star_rounded,
-                              color: Color(0xFFF5A623), size: 18),
+                              color: kStarAmber, size: 18),
                           const SizedBox(width: 4),
                           Text('${anime.score}',
                               style: const TextStyle(
@@ -291,25 +276,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _sectionLabel(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('TOP THIS WEEK',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              )),
-        ],
-      ),
-    );
+    return const SectionLabel(text: 'Top this week');
   }
 
   Widget _rankRow(BuildContext context, int rank, Anime anime) {
-    final added = context.watch<WatchlistProvider>().contains(anime.malId);
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -340,14 +310,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 Text(anime.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+                    style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 2),
                 Row(
                   children: [
                     if (anime.score != null) ...[
                       const Icon(Icons.star_rounded,
-                          color: Color(0xFFF5A623), size: 14),
+                          color: kStarAmber, size: 14),
                       const SizedBox(width: 3),
                       Text('${anime.score}',
                           style: TextStyle(
@@ -368,7 +337,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ],
             ),
           ),
-          _AddButton(anime: anime, added: added),
+          AddToListButton(anime: anime),
         ],
       ),
     );
@@ -389,36 +358,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  final Anime anime;
-  final bool added;
-  final bool big;
-
-  const _AddButton({required this.anime, required this.added, this.big = false});
-
-  @override
-  Widget build(BuildContext context) {
-    if (added) {
-      return Icon(Icons.check_circle,
-          color: big ? Colors.white : const Color(0xFF10B981),
-          size: big ? 40 : 28);
-    }
-    return Material(
-      color: big ? kAccent : kAccent.withOpacity(0.12),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => context.read<WatchlistProvider>().add(anime),
-        child: Padding(
-          padding: EdgeInsets.all(big ? 12 : 6),
-          child: Icon(Icons.add,
-              color: big ? Colors.white : kAccent, size: big ? 24 : 22),
-        ),
       ),
     );
   }
