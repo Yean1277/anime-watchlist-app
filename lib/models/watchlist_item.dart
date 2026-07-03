@@ -5,9 +5,10 @@ enum WatchStatus {
   planToWatch,
   watching,
   completed,
+  onHold,
   dropped;
 
-  /// The value stored in the database (matches the SQL `check` constraint).
+  /// The value stored in the database (matches the `watch_status` enum type).
   String get dbValue {
     switch (this) {
       case WatchStatus.planToWatch:
@@ -16,6 +17,8 @@ enum WatchStatus {
         return 'watching';
       case WatchStatus.completed:
         return 'completed';
+      case WatchStatus.onHold:
+        return 'on_hold';
       case WatchStatus.dropped:
         return 'dropped';
     }
@@ -30,6 +33,8 @@ enum WatchStatus {
         return 'Watching';
       case WatchStatus.completed:
         return 'Completed';
+      case WatchStatus.onHold:
+        return 'On Hold';
       case WatchStatus.dropped:
         return 'Dropped';
     }
@@ -44,6 +49,8 @@ enum WatchStatus {
         return 'Watching';
       case WatchStatus.completed:
         return 'Completed';
+      case WatchStatus.onHold:
+        return 'On Hold';
       case WatchStatus.dropped:
         return 'Dropped';
     }
@@ -58,6 +65,8 @@ enum WatchStatus {
         return const Color(0xFF10B981); // green
       case WatchStatus.completed:
         return const Color(0xFF3B82F6); // blue
+      case WatchStatus.onHold:
+        return const Color(0xFF64748B); // slate
       case WatchStatus.dropped:
         return const Color(0xFFEF4444); // red
     }
@@ -72,7 +81,11 @@ enum WatchStatus {
   }
 }
 
-/// A single row in the `watchlist` Supabase table.
+/// A watchlist entry: a `user_anime` row joined with its cached `anime` row.
+///
+/// `user_anime` has no single-column id (its primary key is the composite
+/// `(user_id, anime_id)`), so [id] is derived from [malId] — unique within a
+/// single user's list — to keep it a stable, app-wide identity.
 class WatchlistItem {
   final String id;
   final int malId;
@@ -96,33 +109,21 @@ class WatchlistItem {
     required this.status,
   });
 
+  /// Parses a `user_anime` row fetched with `.select('*, anime(*)')`.
   factory WatchlistItem.fromJson(Map<String, dynamic> json) {
+    final anime = json['anime'] as Map<String, dynamic>? ?? const {};
+    final malId = json['anime_id'] as int;
     return WatchlistItem(
-      id: json['id'] as String,
-      malId: json['mal_id'] as int,
-      title: json['title'] as String,
-      titleJapanese: json['title_japanese'] as String?,
-      imageUrl: json['image_url'] as String?,
-      episodes: json['episodes'] as int?,
+      id: malId.toString(),
+      malId: malId,
+      title: (anime['title'] ?? 'Unknown') as String,
+      titleJapanese: anime['title_japanese'] as String?,
+      imageUrl: anime['image_url'] as String?,
+      episodes: anime['episodes'] as int?,
       episodesWatched: (json['episodes_watched'] as int?) ?? 0,
       score: json['score'] as int?,
       status: WatchStatus.fromDb(json['status'] as String),
     );
-  }
-
-  /// Columns sent on insert. `id`, `user_id`, and `created_at` are filled by
-  /// database defaults (`user_id` defaults to `auth.uid()`).
-  Map<String, dynamic> toInsertJson() {
-    return {
-      'mal_id': malId,
-      'title': title,
-      'title_japanese': titleJapanese,
-      'image_url': imageUrl,
-      'episodes': episodes,
-      'episodes_watched': episodesWatched,
-      'score': score,
-      'status': status.dbValue,
-    };
   }
 
   WatchlistItem copyWith({

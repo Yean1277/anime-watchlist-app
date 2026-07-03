@@ -57,7 +57,8 @@ services independently testable.
 3. Results render as tiles. Items already in the list show a check instead of an
    add button (`WatchlistProvider.contains(malId)`).
 4. Tapping add calls `WatchlistProvider.add(anime)` (defaults to *Plan to Watch*),
-   which inserts via `WatchlistService` and prepends the new item.
+   which invokes the `add-to-watchlist` Edge Function via `WatchlistService` and
+   prepends the returned item.
 
 ### c. Status change with optimistic update (`WatchlistCard` → `WatchlistProvider`)
 
@@ -70,37 +71,50 @@ services independently testable.
 
 ## Data model
 
-The single Supabase table `watchlist` (schema in [SETUP.md](../SETUP.md)) maps to
-`WatchlistItem`:
+`WatchlistItem` is built from a `user_anime` row joined with its cached `anime`
+row (`.select('*, anime(*)')`; schema in [SETUP.md](../SETUP.md)):
 
-| Column | Type | Maps to | Notes |
-| --- | --- | --- | --- |
-| `id` | uuid | `WatchlistItem.id` | server default `gen_random_uuid()` |
-| `user_id` | uuid | — (not in model) | server default `auth.uid()`; RLS key |
-| `mal_id` | int | `malId` | MyAnimeList id; unique per user |
-| `title` | text | `title` | |
-| `image_url` | text | `imageUrl` | cover art |
-| `episodes` | int | `episodes` | nullable |
-| `status` | text | `status` | one of the `WatchStatus.dbValue` strings |
-| `created_at` | timestamptz | — | ordering (newest first) |
+| Column | Table | Type | Maps to | Notes |
+| --- | --- | --- | --- | --- |
+| `anime_id` | `user_anime` | bigint | `malId` (and `id`, as `malId.toString()`) | FK → `anime.mal_id`; part of the composite PK |
+| `user_id` | `user_anime` | uuid | — (not in model) | set explicitly to `auth.uid()`; RLS key |
+| `status` | `user_anime` | `watch_status` enum | `status` | one of the `WatchStatus.dbValue` strings |
+| `episodes_watched` | `user_anime` | int | `episodesWatched` | |
+| `score` | `user_anime` | smallint (1-10) | `score` | nullable; UI currently only sets 1-5 |
+| `created_at` | `user_anime` | timestamptz | — | ordering (newest first) |
+| `title` / `title_japanese` | `anime` | text | `title` / `titleJapanese` | |
+| `image_url` | `anime` | text | `imageUrl` | cover art |
+| `episodes` | `anime` | int | `episodes` | nullable |
 
-`WatchStatus` is the source of truth for status values. `dbValue` produces the
-snake_case strings stored in the DB and required by the table's `check`
-constraint; `fromDb` parses them back (falling back to `planToWatch`). The enum
-also carries the UI `label` and `color`. Server-managed columns (`id`, `user_id`,
-`created_at`) are never sent on insert — see `WatchlistItem.toInsertJson()`.
+`user_anime` has no single-column id — its primary key is `(user_id, anime_id)` —
+so `WatchlistItem.id` is derived from `malId`, which is unique within one user's
+list. `WatchStatus` is the source of truth for status values: `dbValue` produces
+the snake_case strings stored in the `watch_status` Postgres enum; `fromDb` parses
+them back (falling back to `planToWatch`). The enum also carries the UI `label`
+and `color`.
+
+The `anime` table is a shared Jikan cache (keyed by `mal_id`) populated by the
+`add-to-watchlist` Edge Function, not written directly by the app.
 
 ## Security model
 
-- **Row Level Security** is enabled on `watchlist`, with select/insert/update/delete
-  policies all requiring `auth.uid() = user_id`. A user can only ever read or
-  modify their own rows, so the service layer needs no manual `user_id` filtering.
-- `user_id` defaults to `auth.uid()` at the database, so inserts can't spoof another
-  user's id.
+- **Row Level Security** is enabled on every table. `user_anime` requires
+  `auth.uid() = user_id` for insert/update/delete (plus a public-library
+  exception on select), so a user can only ever modify their own rows — the
+  service layer needs no manual `user_id` filtering. `anime` (and its related
+  cache tables) are select-only for the `anon` role.
+- Because `anime` isn't writable by the app, adding a new entry goes through the
+  `add-to-watchlist` Edge Function: it authenticates the caller's JWT, fetches/
+  upserts the `anime` row using the `service_role` key (bypassing RLS, server-side
+  only), then writes `user_anime` using the caller's own identity so RLS still
+  applies to that write. See `supabase/functions/add-to-watchlist/index.ts`.
+- A database trigger (`handle_new_user`) creates a `profiles` row for every new
+  `auth.users` row (including anonymous sign-ins), satisfying `user_anime`'s FK
+  to `profiles` with no app-side code.
 - The **`anon` key is a public client key** and is safe to ship in the app; it does
-  not grant data access on its own — RLS does the enforcement. Real secrets (none
-  required for this app beyond the project URL/anon key) would still live only in
-  the git-ignored `.env`.
+  not grant data access on its own — RLS does the enforcement. The
+  `service_role` key used by the Edge Function is never exposed to the client;
+  it's injected server-side by Supabase.
 
 ## Directory map
 
