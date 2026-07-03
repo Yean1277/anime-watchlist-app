@@ -91,3 +91,22 @@ code bloats the repo.
 **Consequences.** No secrets in version control and a lean repo. Trade-off: a small
 one-time setup step after cloning (documented in [SETUP.md](../SETUP.md)), and
 `.env` must exist before building since it is declared as a Flutter asset.
+
+---
+
+## 7. GitHub Flow with category-prefixed branches
+
+**Context.** The project had no written branching convention, so branch names and
+PRs were ad-hoc. We want a standard, low-overhead workflow for a small app.
+
+**Decision.** Adopt **GitHub Flow**: `main` is always deployable, and all work
+happens on short-lived branches merged via Pull Request — no long-lived `develop`
+or `release` branches. Branches use a category prefix
+(`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`, `ci/`) matching the
+conventional-commit style already used in history, so every branch and PR is
+self-categorizing. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+**Consequences.** Consistent, self-documenting branch/PR/commit categories with
+minimal process. Trade-off: less release ceremony than Git Flow — acceptable at this
+scale. Branch protection on `main` is recommended but must be set in the GitHub UI,
+not in the repo.
