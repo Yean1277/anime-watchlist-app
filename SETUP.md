@@ -36,53 +36,124 @@ flutter pub get
 1. Go to <https://supabase.com/dashboard> and create a new project.
 2. Wait for it to finish provisioning.
 
-### 2a. Create the table + Row Level Security policies
+### 2a. Create the tables + Row Level Security policies
 
 Open **SQL Editor** in the Supabase dashboard, paste the following, and run it:
 
 ```sql
-create table public.watchlist (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  mal_id integer not null,
-  title text not null,
-  title_japanese text,
-  image_url text,
-  episodes integer,
-  episodes_watched integer not null default 0,
-  score integer check (score between 1 and 5),
-  status text not null default 'plan_to_watch'
-    check (status in ('plan_to_watch','watching','completed','dropped')),
+-- One row per profile; auto-created for every new auth user (see trigger below).
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text unique check (username ~ '^[a-zA-Z0-9_]{3,20}$'),
+  display_name text,
+  avatar_url text,
+  is_library_public boolean not null default true,
   created_at timestamptz not null default now(),
-  unique (user_id, mal_id)
+  updated_at timestamptz not null default now()
 );
+alter table public.profiles enable row level security;
+create policy "profiles_select_all" on public.profiles for select using (true);
+create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
+create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
 
-alter table public.watchlist enable row level security;
+-- Auto-create a profile row whenever a new auth user signs up (incl. anonymously).
+create function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (new.id, new.raw_user_meta_data ->> 'display_name');
+  return new;
+end;
+$$;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 
-create policy "own rows - select" on public.watchlist
-  for select using (auth.uid() = user_id);
-create policy "own rows - insert" on public.watchlist
+-- Shared Jikan cache, kept fresh by the `add-to-watchlist` Edge Function
+-- (writes require service_role; the app only ever reads this table).
+create table public.anime (
+  mal_id bigint primary key,
+  title text not null,
+  title_english text,
+  title_japanese text,
+  synopsis text,
+  type text,
+  source text,
+  status text,
+  episodes integer,
+  aired_from date,
+  aired_to date,
+  season text,
+  year integer,
+  score numeric,
+  rank integer,
+  popularity integer,
+  image_url text,
+  trailer_url text,
+  synced_at timestamptz not null default now()
+);
+alter table public.anime enable row level security;
+create policy "anime_select_all" on public.anime for select using (true);
+
+-- The actual watchlist: one row per (user, anime).
+create type public.watch_status as enum
+  ('plan_to_watch', 'watching', 'completed', 'on_hold', 'dropped');
+
+create table public.user_anime (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  anime_id bigint not null references public.anime(mal_id) on delete cascade,
+  status public.watch_status not null default 'plan_to_watch',
+  score smallint check (score between 1 and 10),
+  episodes_watched integer not null default 0,
+  is_favorite boolean not null default false,
+  notify_new_episodes boolean not null default false,
+  notes text,
+  started_at date,
+  finished_at date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, anime_id)
+);
+alter table public.user_anime enable row level security;
+
+create policy "user_anime_select" on public.user_anime for select using (
+  auth.uid() = user_id
+  or exists (select 1 from public.profiles p where p.id = user_anime.user_id and p.is_library_public)
+);
+create policy "user_anime_insert_own" on public.user_anime
   for insert with check (auth.uid() = user_id);
-create policy "own rows - update" on public.watchlist
+create policy "user_anime_update_own" on public.user_anime
   for update using (auth.uid() = user_id);
-create policy "own rows - delete" on public.watchlist
+create policy "user_anime_delete_own" on public.user_anime
   for delete using (auth.uid() = user_id);
 ```
 
-> **Upgrading an existing table?** If you created the `watchlist` table before
-> the redesign, add the new columns instead of recreating it:
->
-> ```sql
-> alter table public.watchlist
->   add column if not exists title_japanese text,
->   add column if not exists episodes_watched integer not null default 0,
->   add column if not exists score integer check (score between 1 and 5);
-> ```
+> `genres`, `anime_genres`, `anime_episodes`, and `watched_episodes` are
+> additional cache/detail tables the Edge Function also maintains; they're not
+> required for the app's current feature set (search, add, status, progress,
+> rating) and are omitted here for brevity.
 
-The `user_id` column defaults to `auth.uid()`, so inserts from the app don't
-need to send it, and RLS guarantees each user only sees their own rows.
+The `user_id` column has no default — it's always set explicitly to the
+signed-in user's id (`auth.uid()`) by the app / Edge Function, and RLS
+guarantees each user only sees/modifies their own `user_anime` rows.
 
-### 2b. Enable anonymous sign-ins
+### 2b. Deploy the `add-to-watchlist` Edge Function
+
+Adding an anime writes to the shared `anime` cache table, which the app's
+`anon` key cannot write to directly (by design — see RLS above). The
+`add-to-watchlist` Edge Function does this with the `service_role` key on the
+server, then writes `user_anime` under the caller's own identity. Deploy it
+with the Supabase CLI:
+
+```bash
+supabase functions deploy add-to-watchlist --project-ref your-project-ref
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are
+auto-injected into every Edge Function by Supabase — no manual secrets setup
+needed.
+
+### 2c. Enable anonymous sign-ins
 
 The app signs each device in anonymously (no login screen). Enable it:
 
@@ -132,8 +203,9 @@ Pick a connected device, emulator, or simulator.
    Dropped** tabs.
 4. **Persistence** — fully close and reopen the app; your list should reload
    (this proves the Supabase round-trip).
-5. **Backend check** — in Supabase, open **Table Editor → watchlist** and confirm
-   the rows are there with the correct `status` values.
+5. **Backend check** — in Supabase, open **Table Editor → user_anime** and confirm
+   the rows are there with the correct `status` values (and **Table Editor → anime**
+   for the cached Jikan data written by the Edge Function).
 
 Run the unit tests anytime with:
 
@@ -148,7 +220,8 @@ flutter test
 | Symptom | Fix |
 | --- | --- |
 | App hangs on a blank screen at launch | Check `SUPABASE_URL` / `SUPABASE_ANON_KEY` in `.env` are correct. |
-| `AuthException` on launch | Make sure **Anonymous sign-ins** are enabled (step 2b). |
+| `AuthException` on launch | Make sure **Anonymous sign-ins** are enabled (step 2c). |
 | Items add but never appear / "row violates RLS" | Re-run the RLS policies in step 2a. |
+| Adding an anime fails with a function/network error | Confirm the `add-to-watchlist` Edge Function is deployed (step 2b) and `ACTIVE` in the dashboard. |
 | Search returns nothing | Jikan rate-limits bursts; wait a moment and retry. Ensure the device has internet. |
 | `.env` not found at runtime | Confirm `.env` exists and is listed under `flutter: assets:` in `pubspec.yaml` (it is by default). |

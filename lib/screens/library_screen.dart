@@ -27,6 +27,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     WatchStatus.watching,
     WatchStatus.planToWatch,
     WatchStatus.completed,
+    WatchStatus.onHold,
     WatchStatus.dropped,
   ];
 
