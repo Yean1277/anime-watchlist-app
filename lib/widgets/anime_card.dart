@@ -47,10 +47,7 @@ class AnimeCard extends StatelessWidget {
                       item.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: theme.textTheme.titleMedium,
                     ),
                     if (item.titleJapanese != null &&
                         item.titleJapanese!.isNotEmpty) ...[

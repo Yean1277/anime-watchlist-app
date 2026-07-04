@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/watchlist_item.dart';
 import '../providers/watchlist_provider.dart';
 import 'cover_tile.dart';
+import 'section_label.dart';
 import 'star_rating.dart';
 
 /// Bottom sheet to edit one watchlist entry: status, episode progress, rating,
@@ -128,7 +129,7 @@ class AnimeDetailSheet extends StatelessWidget {
                   if (context.mounted) Navigator.of(context).pop();
                 },
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Theme.of(context).colorScheme.error,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 icon: const Icon(Icons.delete_outline_rounded),
@@ -141,15 +142,8 @@ class AnimeDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _label(String text) => Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: Color(0xFF9AA0A6),
-        ),
-      );
+  Widget _label(String text) =>
+      SectionLabel(text: text, padding: EdgeInsets.zero);
 }
 
 class _EpisodeStepper extends StatelessWidget {

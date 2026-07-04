@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (migration noted in SETUP.md).
 
 ### Changed
+- **UI refinement pass**: Inter is now bundled as the app font with a proper
+  theme-level type scale; the Search screen was rebuilt to match the app's
+  design language (filled rounded search field, `CoverTile` covers, friendly
+  empty/error states); the bottom navigation highlights the active tab in the
+  accent color; and one-off hardcoded colors/labels were consolidated into the
+  theme and new shared widgets (`SectionLabel`, `FilterPill`,
+  `CircleIconButton`, `AddToListButton`).
 - Status pill palette refreshed (Plan purple / Watching green / Completed blue
   / Dropped red).
 

@@ -23,6 +23,7 @@ web/
 linux/
 macos/
 windows/
+.metadata
 
 # Misc
 .DS_Store

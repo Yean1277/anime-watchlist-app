@@ -5,6 +5,7 @@ import '../models/watchlist_item.dart';
 import '../providers/watchlist_provider.dart';
 import '../theme.dart';
 import '../widgets/screen_header.dart';
+import '../widgets/section_label.dart';
 
 /// Stats tab: summary cards and a per-status breakdown, computed live from the
 /// watchlist.
@@ -73,17 +74,9 @@ class StatsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const Padding(
+            const SectionLabel(
+              text: 'By status',
               padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
-              child: Text(
-                'BY STATUS',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: Color(0xFF9AA0A6),
-                ),
-              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// A 5-star rating row. Read-only by default; pass [onRate] to make it tappable
 /// (tapping the same star again clears the rating).
 class StarRating extends StatelessWidget {
@@ -16,7 +18,7 @@ class StarRating extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const amber = Color(0xFFF5A623);
+    const amber = kStarAmber;
     final filled = score ?? 0;
     return Row(
       mainAxisSize: MainAxisSize.min,
