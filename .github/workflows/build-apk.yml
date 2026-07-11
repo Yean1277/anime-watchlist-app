@@ -1,0 +1,86 @@
+name: Build Android APK
+
+# Builds a release APK and attaches it to a GitHub prerelease so it can be
+# downloaded and installed on a phone for testing. Runs in demo mode unless
+# Supabase credentials are supplied via repository secrets (same secrets as
+# the web deploy: SUPABASE_URL and SUPABASE_ANON_KEY).
+on:
+  push:
+    branches:
+      - claude/mobile-apk-release-azvmpz
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# Needed to create the release + tag.
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Generate the git-ignored android/ platform folder. `flutter create`
+      # also overwrites lib/main.dart and pubspec.yaml, so restore the repo
+      # versions of every tracked file it touched.
+      - name: Generate Android platform files
+        run: |
+          flutter create --platforms=android --org com.example .
+          git checkout -- .
+
+      # `.env` is a declared asset and must exist at build time. Inject secrets
+      # if present (real backend); otherwise an empty file keeps demo mode.
+      - name: Create .env
+        run: |
+          {
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}"
+            echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}"
+          } > .env
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Release build signed with the default debug keystore — fine for
+      # sideloaded test installs, not for Play Store distribution.
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-watchlist-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish test release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="apk-test-${{ github.run_number }}"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "anime-watchlist-${tag}.apk"
+          gh release create "$tag" "anime-watchlist-${tag}.apk" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Anime Watchlist test APK (build ${{ github.run_number }})" \
+            --notes "Sideloadable test build from \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA}.
+
+          Download the .apk below on your Android phone and open it to install (allow \"install from unknown sources\" if prompted). Signed with a debug key — for testing only."
