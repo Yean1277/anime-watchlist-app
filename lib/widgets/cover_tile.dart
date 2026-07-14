@@ -49,6 +49,8 @@ class CoverTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final r = BorderRadius.circular(radius ?? AppRadius.sm);
     final gradient = _gradients[seed.abs() % _gradients.length];
 
@@ -82,16 +84,26 @@ class CoverTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // The gradient tile always sits underneath: it shows through while
+            // the network image loads (or fails), and the image fades in over it.
+            fallback,
             if (hasImage)
               Image.network(
                 imageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => fallback,
-                loadingBuilder: (context, child, progress) =>
-                    progress == null ? child : fallback,
-              )
-            else
-              fallback,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  // Memory-cached images land synchronously — no fade, no flash.
+                  if (wasSynchronouslyLoaded) return child;
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0 : 1,
+                    duration: reduceMotion ? Duration.zero : AppMotion.fade,
+                    curve: AppMotion.curve,
+                    child: child,
+                  );
+                },
+              ),
             // Uniform 35% ink scrim from top → bottom.
             const DecoratedBox(
               decoration: BoxDecoration(
