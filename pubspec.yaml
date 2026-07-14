@@ -15,6 +15,7 @@ dependencies:
   flutter_dotenv: ^5.1.0
   shared_preferences: ^2.2.3
   cupertino_icons: ^1.0.6
+  flutter_animate: ^4.5.0
 
 dev_dependencies:
   flutter_test:
@@ -26,6 +27,23 @@ flutter:
   assets:
     - .env
   fonts:
+    # Zen Maru Gothic (丸ゴシック) — titles + all JP/CJK. The "soft" comes from here.
+    - family: ZenMaruGothic
+      fonts:
+        - asset: assets/fonts/ZenMaruGothic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/ZenMaruGothic-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/ZenMaruGothic-Black.ttf
+          weight: 900
+    # Outfit — geometric round face, numbers + english labels only.
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Outfit-Bold.ttf
+          weight: 700
+    # Inter kept only as a latin fallback during the transition.
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Regular.ttf

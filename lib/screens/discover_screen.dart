@@ -6,11 +6,11 @@ import '../theme.dart';
 import '../widgets/add_to_list_button.dart';
 import '../widgets/cover_tile.dart';
 import '../widgets/filter_pill.dart';
+import '../widgets/furigana_header.dart';
 import '../widgets/screen_header.dart';
-import '../widgets/section_label.dart';
 import 'search_screen.dart';
 
-/// Discover tab: a search entry point, genre filters, a spotlight hero, and the
+/// Discover (探す): a search entry, genre filters, a spotlight hero, and the
 /// current top-airing ranking from Jikan.
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -73,28 +73,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: _load,
+          color: AppColor.accent,
+          backgroundColor: AppColor.surface,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.only(bottom: 110),
             children: [
               const ScreenHeader(
+                furigana: 'さがす',
                 title: 'Discover',
-                subtitle: "What's everyone bingeing this cour",
+                subtitle: "What everyone's bingeing this cour",
               ),
               _searchBar(context),
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.only(top: 80),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                      child: CircularProgressIndicator(color: AppColor.accent)),
                 )
               else if (_error != null)
                 _errorState(context)
               else ...[
-                _genreChips(context),
+                _genreChips(),
                 if (_filtered.isNotEmpty) _spotlight(context, _filtered.first),
-                _sectionLabel(context),
+                const FuriganaHeader(furigana: 'こんしゅう', title: 'Top this week'),
                 ..._filtered.asMap().entries.map(
                       (e) => _rankRow(context, e.key + 1, e.value),
                     ),
@@ -107,7 +112,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _searchBar(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: GestureDetector(
@@ -115,17 +119,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           MaterialPageRoute(builder: (_) => const SearchScreen()),
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: cardColorFor(context),
-            borderRadius: BorderRadius.circular(16),
+            color: AppColor.surface,
+            border: Border.all(color: AppColor.border),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Row(
             children: [
-              Icon(Icons.search, color: scheme.onSurfaceVariant),
+              const Icon(Icons.search_rounded, color: AppColor.textMuted),
               const SizedBox(width: 12),
-              Text('Search anime…',
-                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16)),
+              Text('Search anime…', style: AppText.body),
             ],
           ),
         ),
@@ -133,7 +137,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     );
   }
 
-  Widget _genreChips(BuildContext context) {
+  Widget _genreChips() {
     final genres = ['All', ..._topGenres];
     return SizedBox(
       height: 44,
@@ -141,7 +145,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: genres.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final g = genres[i];
           final isAll = g == 'All';
@@ -156,19 +160,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _spotlight(BuildContext context, Anime anime) {
-    final genre = anime.genres.isNotEmpty ? anime.genres.first.toUpperCase() : 'SPOTLIGHT';
+    final genre =
+        anime.genres.isNotEmpty ? anime.genres.first.toUpperCase() : 'SPOTLIGHT';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: SizedBox(
           height: 220,
           child: Stack(
             fit: StackFit.expand,
             children: [
               if (anime.imageUrl != null)
-                Image.network(anime.imageUrl!, fit: BoxFit.cover,
+                Image.network(anime.imageUrl!,
+                    fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _heroGradient(anime))
               else
                 _heroGradient(anime),
@@ -177,36 +183,29 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.black26, Colors.black87],
+                    colors: [Color(0x3315171A), Color(0xF215171A)],
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(20),
+                        color: AppColor.secondary,
+                        borderRadius: BorderRadius.circular(AppRadius.full),
                       ),
-                      child: const Text('🔥 #1 THIS WEEK',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
+                      child: Text('#1 THIS WEEK',
+                          style: AppText.label
+                              .copyWith(color: AppColor.onAccent)),
                     ),
                     const Spacer(),
-                    Text('$genre · SPOTLIGHT',
-                        style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5)),
-                    const SizedBox(height: 4),
+                    Text('$genre · SPOTLIGHT', style: AppText.label),
+                    const SizedBox(height: 6),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -215,13 +214,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                             anime.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: AppText.display.copyWith(fontSize: 22),
                           ),
                         ),
+                        const SizedBox(width: 10),
                         AddToListButton(anime: anime, big: true),
                       ],
                     ),
@@ -230,21 +226,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       children: [
                         if (anime.score != null) ...[
                           const Icon(Icons.star_rounded,
-                              color: kStarAmber, size: 18),
+                              color: AppColor.accent, size: 16),
                           const SizedBox(width: 4),
-                          Text('${anime.score}',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
+                          Text('${anime.score}', style: AppText.numS),
                           const SizedBox(width: 14),
                         ],
                         if (anime.episodes != null) ...[
-                          Text('${anime.episodes} eps',
-                              style: const TextStyle(color: Colors.white70)),
+                          Text('${anime.episodes} eps', style: AppText.caption),
                           const SizedBox(width: 14),
                         ],
                         Text(anime.airing ? 'Airing' : 'Finished',
-                            style: const TextStyle(color: Colors.white70)),
+                            style: AppText.caption),
                       ],
                     ),
                   ],
@@ -259,9 +251,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   Widget _heroGradient(Anime anime) {
     final palette = [
-      [const Color(0xFF7F53AC), const Color(0xFF201335)],
-      [const Color(0xFF11998E), const Color(0xFF0A2A28)],
-      [const Color(0xFF8B1E3F), const Color(0xFF2A0E16)],
+      [const Color(0xFF3E5B7E), const Color(0xFF20303F)],
+      [const Color(0xFF6E8F73), const Color(0xFF26332B)],
+      [const Color(0xFF8B6A72), const Color(0xFF2A1E22)],
     ];
     final c = palette[anime.malId.abs() % palette.length];
     return DecoratedBox(
@@ -275,23 +267,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     );
   }
 
-  Widget _sectionLabel(BuildContext context) {
-    return const SectionLabel(text: 'Top this week');
-  }
-
   Widget _rankRow(BuildContext context, int rank, Anime anime) {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
           SizedBox(
-            width: 28,
+            width: 26,
             child: Text('$rank',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: rank <= 3 ? kAccent : scheme.onSurfaceVariant,
+                style: AppText.numM.copyWith(
+                  color: rank <= 3 ? AppColor.accent : AppColor.textMuted,
                 )),
           ),
           const SizedBox(width: 8),
@@ -310,17 +295,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 Text(anime.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 2),
+                    style: AppText.titleS),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     if (anime.score != null) ...[
                       const Icon(Icons.star_rounded,
-                          color: kStarAmber, size: 14),
+                          color: AppColor.accent, size: 13),
                       const SizedBox(width: 3),
-                      Text('${anime.score}',
-                          style: TextStyle(
-                              fontSize: 12, color: scheme.onSurfaceVariant)),
+                      Text('${anime.score}', style: AppText.caption),
                       const SizedBox(width: 8),
                     ],
                     Expanded(
@@ -328,8 +311,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         anime.genres.isNotEmpty ? anime.genres.first : '',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12, color: scheme.onSurfaceVariant),
+                        style: AppText.caption,
                       ),
                     ),
                   ],
@@ -337,6 +319,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           AddToListButton(anime: anime),
         ],
       ),
@@ -349,14 +332,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       child: Column(
         children: [
           const SizedBox(height: 60),
-          Icon(Icons.cloud_off_rounded,
-              size: 56,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const Icon(Icons.cloud_off_rounded,
+              size: 52, color: AppColor.textMuted),
           const SizedBox(height: 16),
-          Text('Could not reach Jikan. Pull to retry.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Text("Couldn't reach Jikan. Pull to retry.",
+              textAlign: TextAlign.center, style: AppText.caption),
         ],
       ),
     );

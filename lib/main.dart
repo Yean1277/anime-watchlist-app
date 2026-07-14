@@ -3,7 +3,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'providers/theme_provider.dart';
 import 'providers/watchlist_provider.dart';
 import 'services/in_memory_watchlist_repository.dart';
 import 'services/watchlist_repository.dart';
@@ -39,13 +38,9 @@ Future<void> main() async {
     repository = InMemoryWatchlistRepository();
   }
 
-  final themeProvider = ThemeProvider();
-  await themeProvider.load();
-
   runApp(AnimeWatchlistApp(
     repository: repository,
     demoMode: !configured,
-    themeProvider: themeProvider,
   ));
 }
 
@@ -73,33 +68,23 @@ bool _looksConfigured(String url, String anonKey) {
 class AnimeWatchlistApp extends StatelessWidget {
   final WatchlistRepository repository;
   final bool demoMode;
-  final ThemeProvider themeProvider;
 
   const AnimeWatchlistApp({
     super.key,
     required this.repository,
     required this.demoMode,
-    required this.themeProvider,
   });
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: themeProvider),
-        ChangeNotifierProvider(
-          create: (_) => WatchlistProvider(repository, demoMode: demoMode)..load(),
-        ),
-      ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, theme, _) => MaterialApp(
-          title: 'Anime Watchlist',
-          debugShowCheckedModeBanner: false,
-          theme: buildLightTheme(),
-          darkTheme: buildDarkTheme(),
-          themeMode: theme.mode,
-          home: const HomeShell(),
-        ),
+    return ChangeNotifierProvider(
+      create: (_) => WatchlistProvider(repository, demoMode: demoMode)..load(),
+      child: MaterialApp(
+        title: 'Anime Watchlist',
+        debugShowCheckedModeBanner: false,
+        // 宵 / YOI is dark-only by design — a single theme, no toggle.
+        theme: buildTheme(),
+        home: const HomeShell(),
       ),
     );
   }
