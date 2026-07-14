@@ -18,7 +18,6 @@ class StarRating extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const amber = kStarAmber;
     final filled = score ?? 0;
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -27,7 +26,9 @@ class StarRating extends StatelessWidget {
         final icon = Icon(
           value <= filled ? Icons.star_rounded : Icons.star_outline_rounded,
           size: size,
-          color: value <= filled ? amber : Colors.grey.withOpacity(0.5),
+          color: value <= filled
+              ? AppColor.accent
+              : AppColor.textMuted.withOpacity(0.5),
         );
         if (onRate == null) return icon;
         return GestureDetector(

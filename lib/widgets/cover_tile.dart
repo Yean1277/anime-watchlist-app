@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// A rounded anime cover. Shows the real Jikan image when available, otherwise
-/// a deterministic gradient tile with a single glyph (kanji/initial), matching
-/// the redesign's stylized look.
+/// a soft deterministic gradient tile with a single glyph (kanji/initial). A
+/// 35% ink scrim is layered on every cover so mixed source art reads uniformly
+/// against the dark canvas (spec §5.5).
 class CoverTile extends StatelessWidget {
   final String? imageUrl;
   final String title;
   final String? titleJapanese;
   final int seed;
   final double size;
+
+  /// Optional explicit height; when null the tile is a [size]×[size] square.
+  final double? height;
+  final double? radius;
 
   const CoverTile({
     super.key,
@@ -17,17 +24,20 @@ class CoverTile extends StatelessWidget {
     required this.seed,
     this.titleJapanese,
     this.size = 64,
+    this.height,
+    this.radius,
   });
 
-  // A few tasteful two-stop gradients; picked deterministically by [seed].
+  // Soft, low-chroma two-stop gradients; picked deterministically by [seed] and
+  // tuned to sit quietly in the 宵/YOI palette.
   static const List<List<Color>> _gradients = [
-    [Color(0xFF6D8BFF), Color(0xFF2BD4D4)],
-    [Color(0xFF8B1E3F), Color(0xFF3D1E2E)],
-    [Color(0xFFFF9A8B), Color(0xFFFF6A88)],
-    [Color(0xFF11998E), Color(0xFF38EF7D)],
-    [Color(0xFF7F53AC), Color(0xFF647DEE)],
-    [Color(0xFFF7971E), Color(0xFFFFD200)],
-    [Color(0xFF4E54C8), Color(0xFF8F94FB)],
+    [Color(0xFF3E5B7E), Color(0xFF25323F)],
+    [Color(0xFF6E8F73), Color(0xFF2E3A31)],
+    [Color(0xFF8B6A72), Color(0xFF3A2A2E)],
+    [Color(0xFF5A6B86), Color(0xFF2A3140)],
+    [Color(0xFF7C7E9A), Color(0xFF32333F)],
+    [Color(0xFF9A8E6E), Color(0xFF3B372B)],
+    [Color(0xFF6E7E86), Color(0xFF2E353A)],
   ];
 
   String get _glyph {
@@ -39,43 +49,61 @@ class CoverTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(16);
+    final r = BorderRadius.circular(radius ?? AppRadius.sm);
     final gradient = _gradients[seed.abs() % _gradients.length];
 
-    final fallback = Container(
-      width: size,
-      height: size,
+    final fallback = DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: radius,
+        borderRadius: r,
         gradient: LinearGradient(
           colors: gradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        _glyph,
-        style: TextStyle(
-          color: Colors.white.withOpacity(0.92),
-          fontSize: size * 0.42,
-          fontWeight: FontWeight.w700,
+      child: Center(
+        child: Text(
+          _glyph,
+          style: AppText.titleL.copyWith(
+            color: AppColor.text.withOpacity(0.92),
+            fontSize: size * 0.42,
+          ),
         ),
       ),
     );
 
-    if (imageUrl == null || imageUrl!.isEmpty) return fallback;
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
 
-    return ClipRRect(
-      borderRadius: radius,
-      child: Image.network(
-        imageUrl!,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : fallback,
+    return SizedBox(
+      width: size,
+      height: height ?? size,
+      child: ClipRRect(
+        borderRadius: r,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (hasImage)
+              Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => fallback,
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : fallback,
+              )
+            else
+              fallback,
+            // Uniform 35% ink scrim from top → bottom.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0x5915171A)],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

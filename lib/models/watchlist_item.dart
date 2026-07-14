@@ -56,19 +56,20 @@ enum WatchStatus {
     }
   }
 
-  /// Accent color used by status pills (matches the redesign palette).
+  /// Muted status tone, harmonized with the 宵/YOI palette (soft, low-contrast).
+  /// Matcha is reserved for the active "watching" state; the rest are quiet.
   Color get color {
     switch (this) {
       case WatchStatus.planToWatch:
-        return const Color(0xFF6C5CE7); // purple
+        return const Color(0xFF8C918B); // 鼠 nezumi — quiet
       case WatchStatus.watching:
-        return const Color(0xFF10B981); // green
+        return const Color(0xFFB9D4A0); // 抹茶 matcha — active
       case WatchStatus.completed:
-        return const Color(0xFF3B82F6); // blue
+        return const Color(0xFF9FC6C2); // muted teal
       case WatchStatus.onHold:
-        return const Color(0xFF64748B); // slate
+        return const Color(0xFFC9B98F); // muted gold
       case WatchStatus.dropped:
-        return const Color(0xFFEF4444); // red
+        return const Color(0xFFD19A9E); // muted rose
     }
   }
 

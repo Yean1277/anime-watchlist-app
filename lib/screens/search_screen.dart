@@ -75,12 +75,17 @@ class _SearchScreenState extends State<SearchScreen> {
       await provider.add(anime);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added "${anime.title}" to your watchlist')),
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColor.surfaceRaised,
+          content: Text('Added "${anime.title}"',
+              style: AppText.body),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add: $e')),
+        SnackBar(content: Text('Could not add: $e', style: AppText.body)),
       );
     }
   }
@@ -92,44 +97,48 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(12, 12, 16, 8),
               child: Row(
                 children: [
                   CircleIconButton(
                     icon: Icons.arrow_back_rounded,
                     onTap: () => Navigator.of(context).pop(),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(child: _searchField(context)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _searchField()),
                 ],
               ),
             ),
-            Expanded(child: _buildBody(context)),
+            Expanded(child: _buildBody()),
           ],
         ),
       ),
     );
   }
 
-  Widget _searchField(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _searchField() {
     return Container(
       decoration: BoxDecoration(
-        color: cardColorFor(context),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColor.surface,
+        border: Border.all(color: AppColor.border),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: TextField(
         controller: _controller,
         autofocus: true,
+        style: AppText.body.copyWith(fontSize: 14),
+        cursorColor: AppColor.accent,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           hintText: 'Search MyAnimeList…',
-          hintStyle: TextStyle(color: scheme.onSurfaceVariant),
-          prefixIcon: Icon(Icons.search, color: scheme.onSurfaceVariant),
+          hintStyle: AppText.body.copyWith(color: AppColor.textMuted),
+          prefixIcon:
+              const Icon(Icons.search_rounded, color: AppColor.textMuted),
           suffixIcon: _controller.text.isEmpty
               ? null
               : IconButton(
-                  icon: Icon(Icons.clear, color: scheme.onSurfaceVariant),
+                  icon: const Icon(Icons.clear_rounded,
+                      color: AppColor.textMuted),
                   onPressed: () {
                     _controller.clear();
                     _onQueryChanged('');
@@ -137,7 +146,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
           border: InputBorder.none,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),
         onChanged: (value) {
           setState(() {}); // refresh clear button
@@ -148,35 +157,37 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: AppColor.accent));
     }
     if (_error != null) {
       return _message(
-        context,
         icon: Icons.cloud_off_rounded,
-        text: 'Search failed. Check your connection\nand try again.',
+        furigana: 'つうしんエラー',
+        title: "Search failed.",
+        body: 'Check your connection and try again.',
       );
     }
     if (_results.isEmpty) {
+      final q = _controller.text.trim();
       return _message(
-        context,
         icon: Icons.travel_explore_rounded,
-        text: _controller.text.trim().isEmpty
-            ? 'Search MyAnimeList for shows\nto add to your library.'
-            : 'No results for "${_controller.text.trim()}".',
+        furigana: q.isEmpty ? 'さがす' : 'みつかりません',
+        title: q.isEmpty ? 'Find shows to track' : 'No results for "$q"',
+        body: q.isEmpty
+            ? 'Search MyAnimeList and add to your library.'
+            : 'Try a different word.',
       );
     }
     return ListView.builder(
       padding: const EdgeInsets.only(top: 4, bottom: 24),
       itemCount: _results.length,
-      itemBuilder: (context, index) => _resultRow(context, _results[index]),
+      itemBuilder: (context, index) => _resultRow(_results[index]),
     );
   }
 
-  Widget _resultRow(BuildContext context, Anime anime) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _resultRow(Anime anime) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
@@ -196,17 +207,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 Text(anime.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 2),
+                    style: AppText.titleS),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     if (anime.score != null) ...[
                       const Icon(Icons.star_rounded,
-                          color: kStarAmber, size: 14),
+                          color: AppColor.accent, size: 13),
                       const SizedBox(width: 3),
-                      Text('${anime.score}',
-                          style: TextStyle(
-                              fontSize: 12, color: scheme.onSurfaceVariant)),
+                      Text('${anime.score}', style: AppText.caption),
                       const SizedBox(width: 8),
                     ],
                     Expanded(
@@ -216,8 +225,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             : 'Episodes unknown',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12, color: scheme.onSurfaceVariant),
+                        style: AppText.caption,
                       ),
                     ),
                   ],
@@ -232,20 +240,25 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _message(BuildContext context,
-      {required IconData icon, required String text}) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _message({
+    required IconData icon,
+    required String furigana,
+    required String title,
+    required String body,
+  }) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: scheme.onSurfaceVariant.withOpacity(0.5)),
+            Icon(icon, size: 52, color: AppColor.textMuted.withOpacity(0.6)),
             const SizedBox(height: 16),
-            Text(text,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: scheme.onSurfaceVariant)),
+            Text(furigana, style: AppText.furigana.copyWith(fontSize: 9)),
+            const SizedBox(height: 8),
+            Text(title, textAlign: TextAlign.center, style: AppText.titleS),
+            const SizedBox(height: 6),
+            Text(body, textAlign: TextAlign.center, style: AppText.caption),
           ],
         ),
       ),
