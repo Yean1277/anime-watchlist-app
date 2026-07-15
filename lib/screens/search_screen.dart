@@ -19,6 +19,9 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
+/// Why a search failed, so the UI can suggest the right remedy.
+enum _SearchError { rateLimited, network, other }
+
 class _SearchScreenState extends State<SearchScreen> {
   final JikanService _jikan = JikanService();
   final TextEditingController _controller = TextEditingController();
@@ -26,7 +29,11 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<Anime> _results = [];
   bool _loading = false;
-  String? _error;
+  _SearchError? _error;
+
+  /// Monotonic token so a slow, stale response can never overwrite the
+  /// results (or cleared state) of a newer query.
+  int _searchGeneration = 0;
 
   @override
   void dispose() {
@@ -41,6 +48,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _search(String query) async {
+    final gen = ++_searchGeneration;
     if (query.trim().isEmpty) {
       setState(() {
         _results = [];
@@ -55,18 +63,26 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     try {
       final results = await _jikan.search(query);
-      if (!mounted) return;
+      if (!mounted || gen != _searchGeneration) return;
       setState(() {
         _results = results;
         _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+    } on JikanRateLimitException {
+      _fail(gen, _SearchError.rateLimited);
+    } on JikanNetworkException {
+      _fail(gen, _SearchError.network);
+    } catch (_) {
+      _fail(gen, _SearchError.other);
     }
+  }
+
+  void _fail(int gen, _SearchError error) {
+    if (!mounted || gen != _searchGeneration) return;
+    setState(() {
+      _error = error;
+      _loading = false;
+    });
   }
 
   Future<void> _add(Anime anime) async {
@@ -161,13 +177,31 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: AppColor.accent));
     }
-    if (_error != null) {
-      return _message(
-        icon: Icons.cloud_off_rounded,
-        furigana: 'つうしんエラー',
-        title: "Search failed.",
-        body: 'Check your connection and try again.',
-      );
+    switch (_error) {
+      case _SearchError.rateLimited:
+        return _message(
+          icon: Icons.hourglass_top_rounded,
+          furigana: 'ちょっとまって',
+          title: 'Too many requests.',
+          body: 'MyAnimeList is rate-limiting us — wait a moment, '
+              'then keep typing.',
+        );
+      case _SearchError.network:
+        return _message(
+          icon: Icons.cloud_off_rounded,
+          furigana: 'つうしんエラー',
+          title: "Search failed.",
+          body: 'Check your connection and try again.',
+        );
+      case _SearchError.other:
+        return _message(
+          icon: Icons.cloud_off_rounded,
+          furigana: 'つうしんエラー',
+          title: 'Something went wrong.',
+          body: 'Try again in a moment.',
+        );
+      case null:
+        break;
     }
     if (_results.isEmpty) {
       final q = _controller.text.trim();

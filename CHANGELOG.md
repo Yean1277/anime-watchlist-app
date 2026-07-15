@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Search resilience**: Jikan's rate limits (429) and transient errors no
+  longer fail a search outright — `JikanService` now retries with a short
+  backoff (honoring small `Retry-After` values) and a request timeout, skips
+  malformed API entries, and the Search/Discover screens show truthful error
+  states (rate-limited vs. offline) instead of a generic "check your
+  connection". Stale responses can no longer overwrite newer search results.
+
 ### Added
 - **Discover tab**: top-airing ranking from Jikan with a spotlight hero, genre
   filters, a search entry point, and one-tap add to the watchlist.

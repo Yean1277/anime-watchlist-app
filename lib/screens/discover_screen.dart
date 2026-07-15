@@ -44,10 +44,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         _all = results;
         _loading = false;
       });
-    } catch (e) {
+    } on JikanRateLimitException {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = 'Jikan is rate-limiting requests. Pull to retry in a moment.';
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = "Couldn't reach Jikan. Pull to retry.";
         _loading = false;
       });
     }
@@ -335,7 +341,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           const Icon(Icons.cloud_off_rounded,
               size: 52, color: AppColor.textMuted),
           const SizedBox(height: 16),
-          Text("Couldn't reach Jikan. Pull to retry.",
+          Text(_error ?? "Couldn't reach Jikan. Pull to retry.",
               textAlign: TextAlign.center, style: AppText.caption),
         ],
       ),
