@@ -47,14 +47,16 @@ create table public.profiles (
   username text unique check (username ~ '^[a-zA-Z0-9_]{3,20}$'),
   display_name text,
   avatar_url text,
-  is_library_public boolean not null default true,
+  is_library_public boolean not null default false, -- sharing is opt-in
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 alter table public.profiles enable row level security;
+-- auth.uid() is wrapped in a sub-select so Postgres evaluates it once per
+-- query (InitPlan) instead of once per row — see Supabase linter rule 0003.
 create policy "profiles_select_all" on public.profiles for select using (true);
-create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
-create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
+create policy "profiles_insert_own" on public.profiles for insert with check ((select auth.uid()) = id);
+create policy "profiles_update_own" on public.profiles for update using ((select auth.uid()) = id);
 
 -- Auto-create a profile row whenever a new auth user signs up (incl. anonymously).
 create function public.handle_new_user()
@@ -101,10 +103,12 @@ create type public.watch_status as enum
 
 create table public.user_anime (
   user_id uuid not null references public.profiles(id) on delete cascade,
-  anime_id bigint not null references public.anime(mal_id) on delete cascade,
+  -- restrict, not cascade: purging a cached anime row must never silently
+  -- delete users' watchlist entries.
+  anime_id bigint not null references public.anime(mal_id) on delete restrict,
   status public.watch_status not null default 'plan_to_watch',
-  score smallint check (score between 1 and 10),
-  episodes_watched integer not null default 0,
+  score smallint check (score between 1 and 10), -- MAL scale; the UI's 1-5 stars are stored ×2
+  episodes_watched integer not null default 0 check (episodes_watched >= 0),
   is_favorite boolean not null default false,
   notify_new_episodes boolean not null default false,
   notes text,
@@ -116,16 +120,19 @@ create table public.user_anime (
 );
 alter table public.user_anime enable row level security;
 
+-- NOTE: this SELECT policy is deliberately wider than "own rows only" — it
+-- also exposes libraries whose owner opted in via is_library_public. App
+-- reads must therefore always filter by user_id themselves.
 create policy "user_anime_select" on public.user_anime for select using (
-  auth.uid() = user_id
+  (select auth.uid()) = user_id
   or exists (select 1 from public.profiles p where p.id = user_anime.user_id and p.is_library_public)
 );
 create policy "user_anime_insert_own" on public.user_anime
-  for insert with check (auth.uid() = user_id);
+  for insert with check ((select auth.uid()) = user_id);
 create policy "user_anime_update_own" on public.user_anime
-  for update using (auth.uid() = user_id);
+  for update using ((select auth.uid()) = user_id);
 create policy "user_anime_delete_own" on public.user_anime
-  for delete using (auth.uid() = user_id);
+  for delete using ((select auth.uid()) = user_id);
 ```
 
 > `genres`, `anime_genres`, `anime_episodes`, and `watched_episodes` are
@@ -134,8 +141,12 @@ create policy "user_anime_delete_own" on public.user_anime
 > rating) and are omitted here for brevity.
 
 The `user_id` column has no default — it's always set explicitly to the
-signed-in user's id (`auth.uid()`) by the app / Edge Function, and RLS
-guarantees each user only sees/modifies their own `user_anime` rows.
+signed-in user's id (`auth.uid()`) by the app / Edge Function. RLS guarantees
+each user only **modifies** their own `user_anime` rows; **reads** can also see
+opted-in public libraries, so the app filters its own queries by `user_id`
+(see `lib/services/watchlist_service.dart`). The full applied schema —
+including the extra tables above, `updated_at` triggers, and indexes — lives in
+the Supabase project's migration history (Dashboard → Database → Migrations).
 
 ### 2b. Deploy the `add-to-watchlist` Edge Function
 

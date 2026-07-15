@@ -65,8 +65,12 @@ The UI never talks to the network directly. It reads from / calls
   through `WatchStatus.dbValue` / `WatchStatus.fromDb` — never hard-code strings.
 - **Secrets**: only in `.env` (git-ignored). Never commit real keys. The `anon`
   key is a public client key; data is protected by RLS, not by hiding the key.
-- **RLS scoping**: every `watchlist` query is automatically scoped to the
-  signed-in user, so services do **not** filter by `user_id` manually.
+- **User scoping**: services filter every `user_anime` query by the signed-in
+  user's id (`.eq('user_id', …)`). RLS write policies are own-row only, but the
+  select policy also exposes opted-in public libraries — RLS is the safety net,
+  not the scoping mechanism.
+- **Score scale**: the DB stores scores on MAL's 1–10 scale; the UI's 1–5 stars
+  map through `WatchlistItem.scoreStars` / `WatchlistItem.starsToScore` (×2).
 
 ## Gotchas
 

@@ -28,7 +28,13 @@ native `android/`/`ios/` folders are generated locally (not committed) via
 sync across devices later, without us hand-rolling a server.
 
 **Decision.** Use Supabase (hosted Postgres) with Row Level Security, accessed via
-`supabase_flutter`. Data lives in a single `watchlist` table.
+`supabase_flutter`. Data is split across `profiles` (one per auth user),
+`anime` (a shared Jikan cache keyed by `mal_id`), and `user_anime` (the actual
+watchlist, PK `(user_id, anime_id)`); an early single `watchlist` table was
+dropped in favour of this split. Libraries are **private by default**
+(`profiles.is_library_public` defaults to `false`); the `user_anime` SELECT
+policy exposes opted-in public libraries, so the app always filters reads by
+`user_id` explicitly rather than relying on RLS for scoping.
 
 **Consequences.** Managed auth + database + RLS with little backend code. The list
 is cloud-stored, not device-only. Trade-off: requires a Supabase project and

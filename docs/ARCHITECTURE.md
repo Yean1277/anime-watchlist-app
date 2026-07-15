@@ -80,7 +80,7 @@ row (`.select('*, anime(*)')`; schema in [SETUP.md](../SETUP.md)):
 | `user_id` | `user_anime` | uuid | — (not in model) | set explicitly to `auth.uid()`; RLS key |
 | `status` | `user_anime` | `watch_status` enum | `status` | one of the `WatchStatus.dbValue` strings |
 | `episodes_watched` | `user_anime` | int | `episodesWatched` | |
-| `score` | `user_anime` | smallint (1-10) | `score` | nullable; UI currently only sets 1-5 |
+| `score` | `user_anime` | smallint (1-10) | `score` | nullable; MAL scale — the UI's 1-5 stars map via `scoreStars` / `starsToScore` (×2) |
 | `created_at` | `user_anime` | timestamptz | — | ordering (newest first) |
 | `title` / `title_japanese` | `anime` | text | `title` / `titleJapanese` | |
 | `image_url` | `anime` | text | `imageUrl` | cover art |
@@ -99,10 +99,13 @@ The `anime` table is a shared Jikan cache (keyed by `mal_id`) populated by the
 ## Security model
 
 - **Row Level Security** is enabled on every table. `user_anime` requires
-  `auth.uid() = user_id` for insert/update/delete (plus a public-library
-  exception on select), so a user can only ever modify their own rows — the
-  service layer needs no manual `user_id` filtering. `anime` (and its related
-  cache tables) are select-only for the `anon` role.
+  `auth.uid() = user_id` for insert/update/delete, so a user can only ever
+  modify their own rows. The **select** policy is deliberately wider: it also
+  exposes libraries whose owner opted in via `profiles.is_library_public`
+  (default `false`). Because of that, the service layer filters every read
+  (and, for consistency, every write) by the signed-in user's id — RLS is the
+  safety net, not the scoping mechanism. `anime` (and its related cache
+  tables) are select-only for the `anon` role.
 - Because `anime` isn't writable by the app, adding a new entry goes through the
   `add-to-watchlist` Edge Function: it authenticates the caller's JWT, fetches/
   upserts the `anime` row using the `service_role` key (bypassing RLS, server-side
