@@ -138,9 +138,10 @@ class DetailScreen extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(2, 22, 2, 12),
         ),
         StarRating(
-          score: it.score,
+          score: it.scoreStars,
           size: 30,
-          onRate: (v) => context.read<WatchlistProvider>().updateScore(it, v),
+          onRate: (v) => context.read<WatchlistProvider>().updateScore(
+              it, v == null ? null : WatchlistItem.starsToScore(v)),
         ),
         const SizedBox(height: 20),
         Center(
@@ -164,7 +165,7 @@ class DetailScreen extends StatelessWidget {
     final chips = <String>[
       if (it.episodes != null) '${it.episodes} eps',
       it.status.label,
-      if (it.score != null) '★ ${it.score}',
+      if (it.score != null) '★ ${it.scoreStars}',
     ];
     return Wrap(
       spacing: 6,

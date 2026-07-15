@@ -8,8 +8,9 @@ import 'watchlist_repository.dart';
 /// cache table for display fields), plus the `add-to-watchlist` Edge Function
 /// for inserts.
 ///
-/// Row Level Security scopes every query to the signed-in (anonymous) user,
-/// so no explicit `user_id` filtering is needed here.
+/// Every query filters by the signed-in (anonymous) user's id explicitly:
+/// the `user_anime` SELECT policy intentionally also exposes other users'
+/// public libraries, so RLS is a safety net here, not the scoping mechanism.
 class WatchlistService implements WatchlistRepository {
   final SupabaseClient _client;
 
@@ -18,10 +19,14 @@ class WatchlistService implements WatchlistRepository {
 
   SupabaseQueryBuilder get _table => _client.from('user_anime');
 
+  /// Non-null by construction: main.dart signs in before creating the service.
+  String get _uid => _client.auth.currentUser!.id;
+
   @override
   Future<List<WatchlistItem>> fetchAll() async {
     final rows = await _table
         .select('*, anime(*)')
+        .eq('user_id', _uid)
         .order('created_at', ascending: false);
     return (rows as List<dynamic>)
         .map((r) => WatchlistItem.fromJson(r as Map<String, dynamic>))
@@ -45,9 +50,12 @@ class WatchlistService implements WatchlistRepository {
         return WatchlistItem.fromJson(entry);
       }
       // already_in_list: true - the upsert skipped an existing row, so fetch
-      // it directly instead of trusting a null entry.
+      // it directly instead of trusting a null entry. The user_id filter is
+      // what makes .single() safe: without it, another user publicly tracking
+      // the same anime would make this query return multiple rows.
       final existing = await _table
           .select('*, anime(*)')
+          .eq('user_id', _uid)
           .eq('anime_id', anime.malId)
           .single();
       return WatchlistItem.fromJson(existing);
@@ -62,23 +70,30 @@ class WatchlistService implements WatchlistRepository {
 
   @override
   Future<void> updateStatus(String id, WatchStatus status) async {
-    await _table.update({'status': status.dbValue}).eq('anime_id', int.parse(id));
+    await _table
+        .update({'status': status.dbValue})
+        .eq('user_id', _uid)
+        .eq('anime_id', int.parse(id));
   }
 
   @override
   Future<void> updateProgress(String id, int episodesWatched) async {
     await _table
         .update({'episodes_watched': episodesWatched})
+        .eq('user_id', _uid)
         .eq('anime_id', int.parse(id));
   }
 
   @override
   Future<void> updateScore(String id, int? score) async {
-    await _table.update({'score': score}).eq('anime_id', int.parse(id));
+    await _table
+        .update({'score': score})
+        .eq('user_id', _uid)
+        .eq('anime_id', int.parse(id));
   }
 
   @override
   Future<void> remove(String id) async {
-    await _table.delete().eq('anime_id', int.parse(id));
+    await _table.delete().eq('user_id', _uid).eq('anime_id', int.parse(id));
   }
 }

@@ -110,6 +110,15 @@ class WatchlistItem {
     required this.status,
   });
 
+  /// [score] is stored on MAL's 1–10 scale (the DB check enforces it), while
+  /// the UI rates in 1–5 stars. These two members are the only place that
+  /// mapping lives.
+  int? get scoreStars =>
+      score == null ? null : (score! / 2).round().clamp(1, 5).toInt();
+
+  /// Converts a 1–5 star rating to the 1–10 DB scale.
+  static int starsToScore(int stars) => (stars * 2).clamp(1, 10).toInt();
+
   /// Parses a `user_anime` row fetched with `.select('*, anime(*)')`.
   factory WatchlistItem.fromJson(Map<String, dynamic> json) {
     final anime = json['anime'] as Map<String, dynamic>? ?? const {};
