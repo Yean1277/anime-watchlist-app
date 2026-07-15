@@ -66,8 +66,10 @@ Supabase dashboard.
 MyAnimeList REST API) over plain `http`.
 
 **Consequences.** No API key or OAuth needed — simplest possible integration.
-Trade-off: it is rate-limited and unofficial, so search is debounced (~450ms) and
-results are de-duplicated by `mal_id`.
+Trade-off: it is rate-limited (~3 req/s) and unofficial, so search is debounced
+(~450ms), `JikanService` retries 429/5xx/network errors with a short backoff
+(honoring small `Retry-After` values) and throws typed exceptions the UI can
+explain truthfully, and results are de-duplicated by `mal_id`.
 
 ---
 

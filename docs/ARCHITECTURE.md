@@ -50,10 +50,14 @@ services independently testable.
 
 ### b. Search and add (`SearchScreen` → `JikanService` → `WatchlistProvider`)
 
-1. User types; input is debounced ~450ms.
+1. User types; input is debounced ~450ms. A generation token drops stale
+   responses so a slow request can't overwrite newer results.
 2. `JikanService.search(query)` GETs
-   `…/anime?q=<query>&limit=20&sfw=true`, maps `data[]` to `Anime`, and
-   de-duplicates by `mal_id`.
+   `…/anime?q=<query>&limit=20&sfw=true` (retrying 429/5xx/network errors
+   with a short backoff, honoring small `Retry-After` values), maps `data[]`
+   to `Anime` — skipping malformed entries — and de-duplicates by `mal_id`.
+   Failures surface as typed `JikanException`s so the UI can tell a rate
+   limit from a connectivity problem.
 3. Results render as tiles. Items already in the list show a check instead of an
    add button (`WatchlistProvider.contains(malId)`).
 4. Tapping add calls `WatchlistProvider.add(anime)` (defaults to *Plan to Watch*),

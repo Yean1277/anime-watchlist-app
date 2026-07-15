@@ -234,5 +234,6 @@ flutter test
 | `AuthException` on launch | Make sure **Anonymous sign-ins** are enabled (step 2c). |
 | Items add but never appear / "row violates RLS" | Re-run the RLS policies in step 2a. |
 | Adding an anime fails with a function/network error | Confirm the `add-to-watchlist` Edge Function is deployed (step 2b) and `ACTIVE` in the dashboard. |
-| Search returns nothing | Jikan rate-limits bursts; wait a moment and retry. Ensure the device has internet. |
+| Search shows "Too many requests" | Jikan rate-limits bursts (~3 req/s). The app already retries briefly; wait a moment and keep typing. |
+| Search shows "Search failed" | Connectivity problem — ensure the device has internet. |
 | `.env` not found at runtime | Confirm `.env` exists and is listed under `flutter: assets:` in `pubspec.yaml` (it is by default). |

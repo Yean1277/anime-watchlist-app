@@ -78,7 +78,11 @@ The UI never talks to the network directly. It reads from / calls
   before `flutter run`/build (copy from `.env.example`).
 - Anonymous sign-ins must be **enabled** in the Supabase dashboard
   (Authentication → Providers → Anonymous), or launch fails with an `AuthException`.
-- The Jikan API rate-limits bursts; search is debounced (~450ms) to be polite.
+- The Jikan API rate-limits bursts (~3 req/s). Search is debounced (~450ms),
+  and `JikanService` retries 429/5xx/network errors with a short backoff
+  (honoring small `Retry-After` values) before throwing a typed
+  `JikanException` — the search UI distinguishes rate-limit from
+  connectivity errors. Don't add raw `http.get` calls outside the service.
 - Native `android/`/`ios/` folders are git-ignored and regenerated via
   `flutter create` (see Commands).
 
