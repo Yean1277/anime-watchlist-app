@@ -80,6 +80,13 @@ class AppMotion {
   static const ring = Duration(milliseconds: 800);
   static const ripple = Duration(milliseconds: 750);
   static const float = Duration(milliseconds: 1000);
+  static const fade = Duration(milliseconds: 240); // cover fade / count switch
+  static const staggerStep = Duration(milliseconds: 40); // list entrance delay
+  static const int staggerCap = 10; // only the first screenful staggers
+
+  /// End-to-end length of a full staggered list entrance. Rebuilds that land
+  /// after this window build statically, so provider updates never replay it.
+  static Duration get entranceWindow => base + staggerStep * staggerCap;
 }
 
 // ─────────────────────────────────────────────────────────── type ──
