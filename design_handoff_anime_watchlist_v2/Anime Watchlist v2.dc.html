@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Outfit:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+  body{margin:0;background:#0b0c0e;font-family:'Zen Maru Gothic',sans-serif;}
+  ::-webkit-scrollbar{display:none;}
+  *{-ms-overflow-style:none;scrollbar-width:none;box-sizing:border-box;}
+  @keyframes cardIn{from{opacity:0;transform:scale(0.92) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+  @keyframes sheetIn{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  @keyframes shimmer{0%{opacity:0.5;}50%{opacity:1;}100%{opacity:0.5;}}
+</style>
+</helmet>
+
+<div style="width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:#0b0c0e;">
+<div style="width:390px;height:844px;background:#15171A;border-radius:44px;border:1px solid rgba(236,237,232,0.10);position:relative;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.6);">
+
+  <!-- ========== AUTHENTICATION ========== -->
+  <sc-if value="{{ screenAuth }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 36px;text-align:center;">
+    <div style="width:76px;height:76px;border-radius:26px;background:linear-gradient(160deg,#C9E0AE,#AFCB95);box-shadow:0 22px 44px -20px rgba(185,212,160,0.5);display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:34px;font-weight:900;color:#171B16;">宵</span>
+    </div>
+    <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}">
+    <div style="font-size:9px;letter-spacing:2.88px;color:#8C918B;margin-top:28px;">よい</div>
+    </sc-if>
+    <div style="font-size:24px;font-weight:900;letter-spacing:0.48px;line-height:1.35;color:#ECEDE8;margin-top:8px;">Start with one anime.</div>
+    <div style="font-size:24px;font-weight:900;letter-spacing:0.48px;line-height:1.35;color:#8C918B;">Build a lifetime library.</div>
+    <div style="font-size:11px;color:#8C918B;margin-top:14px;line-height:1.6;">No account needed. Your collection stays<br/>private on this device, synced quietly.</div>
+    <div onclick="{{ enterApp }}" style="margin-top:36px;width:100%;padding:15px;border-radius:999px;background:#B9D4A0;box-shadow:0 14px 30px -16px rgba(185,212,160,0.7);text-align:center;cursor:pointer;">
+      <span style="font-size:14px;font-weight:700;letter-spacing:0.3px;color:#171B16;white-space:nowrap;">Continue</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ========== MAIN (3 tabs) ========== -->
+  <sc-if value="{{ screenMain }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;overflow:hidden;">
+
+    <!-- LIBRARY -->
+    <sc-if value="{{ showLibrary }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;overflow-y:auto;padding-bottom:110px;">
+      <div style="padding:18px 20px 4px;">
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:8px;letter-spacing:2.56px;color:#8C918B;margin-bottom:4px;">ほんだな</div></sc-if>
+        <div style="font-size:24px;font-weight:900;letter-spacing:0.48px;color:#ECEDE8;">Library</div>
+        <div style="font-size:11px;color:#8C918B;margin-top:4px;">{{ librarySummary }}</div>
+      </div>
+
+      <sc-if value="{{ libLoading }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:16px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <sc-for list="{{ skeletons }}" as="sk" hint-placeholder-count="6">
+          <div style="animation:shimmer 1.4s ease-in-out infinite;animation-delay:{{ sk.delay }};">
+            <div style="aspect-ratio:3/4;border-radius:12px;background:#1E2126;"></div>
+            <div style="height:12px;width:80%;border-radius:6px;background:#1E2126;margin-top:10px;"></div>
+            <div style="height:9px;width:45%;border-radius:6px;background:#1E2126;margin-top:7px;"></div>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ libError }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:110px 40px 0;text-align:center;">
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:9px;letter-spacing:2.88px;color:#8C918B;">つうしんエラー</div></sc-if>
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.3px;color:#ECEDE8;margin-top:12px;">Couldn't load your library.</div>
+        <div onclick="{{ retry }}" style="display:inline-block;margin-top:20px;padding:12px 28px;border-radius:999px;background:#1E2126;border:1px solid rgba(236,237,232,0.08);cursor:pointer;">
+          <span style="font-size:13px;font-weight:700;color:#B9D4A0;white-space:nowrap;">Retry</span>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ libEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:110px 40px 0;text-align:center;">
+        <div style="width:64px;height:64px;border-radius:18px;background:#1E2126;border:1px solid rgba(236,237,232,0.08);display:inline-flex;align-items:center;justify-content:center;">
+          <span style="font-size:26px;font-weight:900;color:#8C918B;">宵</span>
+        </div>
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:9px;letter-spacing:2.88px;color:#8C918B;margin-top:18px;">からっぽ</div></sc-if>
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.3px;color:#ECEDE8;margin-top:10px;">Your collection is empty.</div>
+        <div style="font-size:11px;color:#8C918B;margin-top:6px;">Start with your first anime.</div>
+        <div onclick="{{ goSearch }}" style="display:inline-block;margin-top:22px;padding:13px 26px;border-radius:999px;background:#B9D4A0;box-shadow:0 14px 30px -16px rgba(185,212,160,0.7);cursor:pointer;">
+          <span style="font-size:13px;font-weight:700;color:#171B16;white-space:nowrap;">Find your first anime</span>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ libHasItems }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:16px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <sc-for list="{{ libraryCards }}" as="c" hint-placeholder-count="6">
+        <div onclick="{{ c.onOpen }}" style="cursor:pointer;animation:{{ c.anim }};">
+          <div style="aspect-ratio:3/4;border-radius:12px;overflow:hidden;position:relative;background:linear-gradient(135deg,{{ c.g0 }},{{ c.g1 }});">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:900;color:rgba(236,237,232,0.9);">{{ c.glyph }}</div>
+            <div style="position:absolute;inset:0;background:rgba(21,23,26,0.35);"></div>
+            <div style="position:absolute;left:8px;bottom:8px;padding:4px 9px;border-radius:999px;background:rgba(21,23,26,0.65);backdrop-filter:blur(6px);">
+              <span style="font-size:9px;font-weight:500;letter-spacing:0.5px;color:{{ c.statusColor }};white-space:nowrap;">{{ c.statusLabel }}</span>
+            </div>
+          </div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.26px;line-height:1.4;color:#ECEDE8;margin-top:9px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{{ c.title }}</div>
+        </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ showFab }}" hint-placeholder-val="{{ false }}">
+      <div onclick="{{ goSearch }}" style="position:fixed;display:none;"></div>
+      </sc-if>
+    </div>
+    <sc-if value="{{ showFab }}" hint-placeholder-val="{{ false }}">
+    <div onclick="{{ goSearch }}" style="position:absolute;right:18px;bottom:104px;width:56px;height:56px;border-radius:999px;background:#B9D4A0;box-shadow:0 18px 34px -14px rgba(185,212,160,0.7);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#171B16" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    </sc-if>
+    </sc-if>
+
+    <!-- SEARCH -->
+    <sc-if value="{{ showSearch }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow-y:auto;padding-bottom:110px;">
+      <div style="padding:18px 20px 4px;">
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:8px;letter-spacing:2.56px;color:#8C918B;margin-bottom:4px;">さがす</div></sc-if>
+        <div style="font-size:24px;font-weight:900;letter-spacing:0.48px;color:#ECEDE8;">Search</div>
+      </div>
+      <div style="padding:14px 20px 4px;">
+        <div style="border-radius:18px;background:#1E2126;border:1px solid rgba(236,237,232,0.08);display:flex;align-items:center;padding:0 14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C918B" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value="{{ query }}" oninput="{{ onQueryInput }}" placeholder="Search anime…" style="flex:1;background:transparent;border:none;outline:none;padding:14px;font-size:14px;color:#ECEDE8;font-family:'Zen Maru Gothic';"/>
+        </div>
+      </div>
+
+      <sc-if value="{{ searchIdle }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:80px 40px 0;text-align:center;">
+        <div style="opacity:0.6;display:flex;justify-content:center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8C918B" stroke-width="1.5"><circle cx="10" cy="10" r="6"/><line x1="21" y1="21" x2="14.65" y2="14.65"/></svg></div>
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:9px;letter-spacing:2.88px;color:#8C918B;margin-top:16px;">さがす</div></sc-if>
+        <div style="font-size:14px;font-weight:700;letter-spacing:0.28px;color:#ECEDE8;margin-top:8px;">Find anime to collect</div>
+        <div style="font-size:11px;color:#8C918B;margin-top:6px;">Search MyAnimeList. Covers first.</div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ searchNoResults }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:80px 40px 0;text-align:center;">
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:9px;letter-spacing:2.88px;color:#8C918B;">みつかりません</div></sc-if>
+        <div style="font-size:14px;font-weight:700;letter-spacing:0.28px;color:#ECEDE8;margin-top:10px;">{{ noResultsTitle }}</div>
+        <div style="font-size:11px;color:#8C918B;margin-top:6px;">Try a different word.</div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ searchHasResults }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <sc-for list="{{ searchCards }}" as="r" hint-placeholder-count="6">
+        <div onclick="{{ r.onOpen }}" style="cursor:pointer;">
+          <div style="aspect-ratio:3/4;border-radius:12px;overflow:hidden;position:relative;background:linear-gradient(135deg,{{ r.g0 }},{{ r.g1 }});">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:900;color:rgba(236,237,232,0.9);">{{ r.glyph }}</div>
+            <div style="position:absolute;inset:0;background:rgba(21,23,26,0.35);"></div>
+            <sc-if value="{{ r.inCollection }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:8px;top:8px;width:26px;height:26px;border-radius:999px;background:rgba(185,212,160,0.9);display:flex;align-items:center;justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#171B16" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            </sc-if>
+          </div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.26px;line-height:1.4;color:#ECEDE8;margin-top:9px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{{ r.title }}</div>
+          <div style="font-size:10px;color:#8C918B;margin-top:3px;white-space:nowrap;">{{ r.meta }}</div>
+        </div>
+        </sc-for>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- SETTINGS -->
+    <sc-if value="{{ showSettings }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow-y:auto;padding-bottom:110px;">
+      <div style="padding:18px 20px 4px;">
+        <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:8px;letter-spacing:2.56px;color:#8C918B;margin-bottom:4px;">せってい</div></sc-if>
+        <div style="font-size:24px;font-weight:900;letter-spacing:0.48px;color:#ECEDE8;">Settings</div>
+        <div style="font-size:11px;color:#8C918B;margin-top:4px;">Signed in anonymously · synced</div>
+      </div>
+      <div style="padding:16px 20px 0;">
+        <div style="border-radius:26px;background:#1E2126;border:1px solid rgba(236,237,232,0.08);padding:18px;display:flex;align-items:center;gap:16px;">
+          <div style="width:56px;height:56px;border-radius:999px;background:conic-gradient(#6E8F73,#B9D4A0,#E8B0B4,#6E8F73);padding:2px;flex-shrink:0;">
+            <div style="width:100%;height:100%;border-radius:999px;background:#272B31;display:flex;align-items:center;justify-content:center;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#8C918B"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:16px;font-weight:900;letter-spacing:0.32px;color:#ECEDE8;">Anonymous user</div>
+            <div style="display:inline-block;margin-top:4px;padding:5px 10px;border-radius:999px;background:rgba(185,212,160,0.12);">
+              <span style="font-size:10px;font-weight:500;letter-spacing:0.4px;color:#B9D4A0;white-space:nowrap;">{{ collectionCount }} in collection</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px 20px 0;">
+        <div style="border-radius:18px;background:#1E2126;border:1px solid rgba(236,237,232,0.08);">
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B9D4A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h5v5H4z"/><path d="M15 4h5v5h-5z"/><path d="M4 15h5v5H4z"/><path d="M15 15h5v5h-5z"/></svg>
+            <span style="font-size:14px;font-weight:700;letter-spacing:0.28px;color:#ECEDE8;">{{ collectionCount }} shows collected</span>
+          </div>
+          <div style="height:1px;background:rgba(236,237,232,0.08);margin-left:52px;"></div>
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B9D4A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 5 6.5 5c1.9 0 3.3 1 4 2.2C11.2 6 12.6 5 14.5 5 18 5 20.5 8.5 18.5 12.5 16 16.65 12 21 12 21z"/></svg>
+            <span style="font-size:14px;font-weight:700;letter-spacing:0.28px;color:#ECEDE8;">{{ watchingCount }} watching now</span>
+          </div>
+          <div style="height:1px;background:rgba(236,237,232,0.08);margin-left:52px;"></div>
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B9D4A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span style="font-size:14px;font-weight:700;letter-spacing:0.28px;color:#ECEDE8;flex:1;">About</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C918B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+      <div style="padding:20px 20px 0;text-align:center;">
+        <span style="font-size:10px;letter-spacing:1px;color:#8C918B;">宵 / YOI · v1.1 · data from MyAnimeList via Jikan</span>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- BOTTOM NAV (3 tabs) -->
+    <div style="position:absolute;left:14px;right:14px;bottom:16px;">
+      <div style="border-radius:999px;background:rgba(30,33,38,0.90);border:1px solid rgba(236,237,232,0.08);backdrop-filter:blur(12px);padding:11px 8px;display:flex;justify-content:space-around;">
+        <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="3">
+          <div onclick="{{ n.onTap }}" style="min-width:64px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;">
+            <div style="width:22px;height:22px;" dangerouslySetInnerHTML="{{ n.iconHtml }}"></div>
+            <span style="font-size:11px;color:{{ n.color }};font-weight:{{ n.weight }};line-height:1.5;">{{ n.label }}</span>
+            <div style="width:4px;height:4px;border-radius:999px;background:{{ n.dot }};"></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ========== ANIME DETAIL ========== -->
+  <sc-if value="{{ screenDetail }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:#15171A;display:flex;flex-direction:column;">
+    <div style="flex:1;overflow-y:auto;">
+      <div style="height:300px;position:relative;background:linear-gradient(135deg,{{ detail.g0 }},{{ detail.g1 }});">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:88px;font-weight:900;color:rgba(236,237,232,0.3);">{{ detail.glyph }}</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(21,23,26,0.15) 30%,#15171A 100%);"></div>
+        <div onclick="{{ closeDetail }}" style="position:absolute;top:16px;left:10px;width:40px;height:40px;border-radius:999px;background:rgba(21,23,26,0.5);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ECEDE8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </div>
+      </div>
+      <div style="margin-top:-36px;padding:0 20px 24px;position:relative;">
+        <sc-if value="{{ detail.inCollection }}" hint-placeholder-val="{{ false }}">
+        <div style="display:inline-block;padding:5px 11px;border-radius:999px;background:rgba(185,212,160,0.14);margin-bottom:10px;">
+          <span style="font-size:10px;font-weight:500;letter-spacing:0.5px;color:#B9D4A0;white-space:nowrap;">IN YOUR COLLECTION</span>
+        </div>
+        </sc-if>
+        <div style="font-size:22px;font-weight:900;letter-spacing:0.44px;line-height:1.3;color:#ECEDE8;">{{ detail.title }}</div>
+        <sc-if value="{{ detail.titleJapanese }}" hint-placeholder-val="{{ null }}"><div style="font-size:11px;color:#8C918B;margin-top:4px;">{{ detail.titleJapanese }}</div></sc-if>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;">
+          <sc-for list="{{ detail.metaChips }}" as="c" hint-placeholder-count="2">
+            <div style="padding:4px 9px;border-radius:999px;border:1px solid rgba(236,237,232,0.08);"><span style="font-size:10px;font-weight:500;letter-spacing:0.4px;color:#8C918B;white-space:nowrap;">{{ c.t }}</span></div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ detail.inCollection }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:24px;">
+          <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:8px;letter-spacing:2.56px;color:#8C918B;">じょうたい</div></sc-if>
+          <div style="font-size:15px;font-weight:700;letter-spacing:0.45px;color:#ECEDE8;margin-top:3px;">Status</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+            <sc-for list="{{ detail.statusOptions }}" as="so" hint-placeholder-count="5">
+              <div onclick="{{ so.onTap }}" style="padding:8px 14px;border-radius:999px;font-size:12px;font-weight:{{ so.weight }};color:{{ so.color }};background:{{ so.bg }};border:{{ so.border }};cursor:pointer;white-space:nowrap;">{{ so.label }}</div>
+            </sc-for>
+          </div>
+          <div style="margin-top:26px;display:flex;justify-content:center;">
+            <div onclick="{{ removeItem }}" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D19A9E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              <span style="font-size:12px;color:#D19A9E;white-space:nowrap;">Remove from collection</span>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <sc-if value="{{ detail.notInCollection }}" hint-placeholder-val="{{ true }}">
+    <div style="border-top:1px solid rgba(236,237,232,0.08);padding:12px 20px;">
+      <div onclick="{{ openStatusSheet }}" style="padding:15px;border-radius:999px;background:#B9D4A0;box-shadow:0 14px 30px -16px rgba(185,212,160,0.7);text-align:center;cursor:pointer;">
+        <span style="font-size:14px;font-weight:700;letter-spacing:0.3px;color:#171B16;white-space:nowrap;">Add to Collection</span>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- STATUS SHEET -->
+    <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div onclick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(11,12,14,0.6);"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;border-radius:34px 34px 0 0;background:#1E2126;border-top:1px solid rgba(236,237,232,0.10);padding:14px 20px 28px;animation:sheetIn 340ms cubic-bezier(0.2,0.8,0.2,1);">
+      <div style="width:36px;height:4px;border-radius:999px;background:rgba(236,237,232,0.15);margin:0 auto;"></div>
+      <sc-if value="{{ showFurigana }}" hint-placeholder-val="{{ true }}"><div style="font-size:8px;letter-spacing:2.56px;color:#8C918B;margin-top:18px;">じょうたいをえらぶ</div></sc-if>
+      <div style="font-size:16px;font-weight:900;letter-spacing:0.32px;color:#ECEDE8;margin-top:5px;">Choose a status</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+        <sc-for list="{{ sheetOptions }}" as="opt" hint-placeholder-count="5">
+          <div onclick="{{ opt.onTap }}" style="padding:14px 16px;border-radius:18px;background:#272B31;border:1px solid rgba(236,237,232,0.08);display:flex;align-items:center;gap:12px;cursor:pointer;">
+            <div style="width:10px;height:10px;border-radius:999px;background:{{ opt.tone }};flex-shrink:0;"></div>
+            <span style="font-size:14px;font-weight:700;letter-spacing:0.28px;color:#ECEDE8;flex:1;">{{ opt.label }}</span>
+            <sc-if value="{{ opt.hint }}" hint-placeholder-val="{{ null }}"><span style="font-size:10px;color:#8C918B;white-space:nowrap;">{{ opt.hint }}</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:470,&quot;height&quot;:900},&quot;startEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;States&quot;},&quot;uiState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;loading&quot;,&quot;error&quot;],&quot;section&quot;:&quot;States&quot;},&quot;showFurigana&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Style&quot;}}">
+const GRADIENTS = [
+  ['#3E5B7E','#25323F'],['#6E8F73','#2E3A31'],['#8B6A72','#3A2A2E'],
+  ['#5A6B86','#2A3140'],['#7C7E9A','#32333F'],['#9A8E6E','#3B372B'],['#6E7E86','#2E353A']
+];
+const STATUS_META = {
+  planToWatch:{label:'Plan to Watch', color:'#8C918B', hint:'default'},
+  watching:{label:'Watching', color:'#B9D4A0', hint:null},
+  completed:{label:'Completed', color:'#9FC6C2', hint:null},
+  onHold:{label:'On Hold', color:'#C9B98F', hint:null},
+  dropped:{label:'Dropped', color:'#D19A9E', hint:null},
+};
+const STATUS_ORDER = ['planToWatch','watching','completed','onHold','dropped'];
+const NAV_ICONS = {
+  library: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="COLOR" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11a2 2 0 012 2v14l-7.5-4L4 20V4z"/><path d="M19 8h1a2 2 0 012 2v10l-3-1.5"/></svg>',
+  search: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="COLOR" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  settings: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="COLOR" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.01a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.01a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.01a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
+};
+
+class Component extends DCLogic {
+  state = {
+    screen: 'auth', tab: 0, loading: true,
+    detailRef: null, sheetOpen: false, newId: null, query: '',
+    collection: [
+      {id:'1', malId:1, title:"Frieren: Beyond Journey's End", titleJapanese:'葬送のフリーレン', episodes:28, status:'watching', seed:true},
+      {id:'2', malId:2, title:'Jujutsu Kaisen', titleJapanese:'呪術廻戦', episodes:24, status:'watching', seed:true},
+      {id:'3', malId:3, title:'Vinland Saga', titleJapanese:'ヴィンランド・サガ', episodes:24, status:'completed', seed:true},
+      {id:'4', malId:4, title:'Chainsaw Man', titleJapanese:'チェンソーマン', episodes:12, status:'planToWatch', seed:true},
+      {id:'5', malId:5, title:'Spy x Family', titleJapanese:'SPY×FAMILY', episodes:25, status:'watching', seed:true},
+      {id:'6', malId:6, title:'Mushoku Tensei', titleJapanese:'無職転生', episodes:23, status:'onHold', seed:true},
+    ],
+  };
+
+  catalog = [
+    {malId:101, title:'Kaiju No. 8', titleJapanese:'怪獣8号', episodes:12, score:8.5, airing:true},
+    {malId:102, title:'Dandadan', titleJapanese:'ダンダダン', episodes:12, score:8.6, airing:true},
+    {malId:103, title:'Blue Lock', titleJapanese:'ブルーロック', episodes:24, score:8.2, airing:false},
+    {malId:104, title:'Mashle', titleJapanese:'マッシュル', episodes:12, score:7.5, airing:false},
+    {malId:105, title:'Solo Leveling', titleJapanese:'俺だけレベルアップな件', episodes:12, score:8.6, airing:true},
+    {malId:106, title:'Delicious in Dungeon', titleJapanese:'ダンジョン飯', episodes:24, score:8.3, airing:false},
+    {malId:107, title:'Ranma 1/2', titleJapanese:'らんま1/2', episodes:24, score:7.9, airing:true},
+    {malId:108, title:'Wind Breaker', titleJapanese:'ウィンドブレイカー', episodes:13, score:7.2, airing:true},
+    {malId:109, title:'Oshi no Ko', titleJapanese:'推しの子', episodes:11, score:8.6, airing:false},
+    {malId:110, title:'Bocchi the Rock!', titleJapanese:'ぼっち・ざ・ろっく!', episodes:12, score:8.8, airing:false},
+    {malId:111, title:'Kusuriya no Hitorigoto', titleJapanese:'薬屋のひとりごと', episodes:24, score:8.4, airing:true},
+    {malId:112, title:'Nige Jouzu no Wakagimi', titleJapanese:'逃げ上手の若君', episodes:25, score:7.6, airing:true},
+  ];
+
+  componentDidMount(){
+    this._loadTimer = setTimeout(() => this.setState({loading:false}), 1100);
+  }
+  componentWillUnmount(){ clearTimeout(this._loadTimer); }
+
+  grad(malId){ return GRADIENTS[Math.abs(malId) % GRADIENTS.length]; }
+  glyph(x){ const s = (x.titleJapanese||x.title||'?').trim(); return s.charAt(0)||'?'; }
+  effectiveCollection(){
+    return (this.props.startEmpty ?? false) ? this.state.collection.filter(c=>!c.seed) : this.state.collection;
+  }
+  findInCollection(malId){ return this.effectiveCollection().find(c=>c.malId===malId); }
+
+  enterApp = () => this.setState({screen:'main'});
+  selectTab = (i) => this.setState({tab:i});
+  goSearch = () => this.setState({tab:1});
+  retry = () => {
+    this.setState({loading:true});
+    clearTimeout(this._loadTimer);
+    this._loadTimer = setTimeout(() => this.setState({loading:false}), 1100);
+  };
+  onQueryInput = (e) => this.setState({query:e.target.value});
+  openDetail = (ref) => this.setState({screen:'detail', detailRef:ref, sheetOpen:false});
+  closeDetail = () => this.setState({screen:'main', detailRef:null, sheetOpen:false});
+  openStatusSheet = () => this.setState({sheetOpen:true});
+  closeSheet = () => this.setState({sheetOpen:false});
+  setStatus(item, status){
+    this.setState({collection: this.state.collection.map(c => c.id===item.id ? {...c, status} : c)});
+  }
+  removeItem = () => {
+    const ref = this.state.detailRef;
+    if (!ref) return;
+    this.setState({collection: this.state.collection.filter(c=>c.malId!==ref.malId), screen:'main', detailRef:null});
+  };
+  addWithStatus(cat, status){
+    const item = {id:'c'+cat.malId, malId:cat.malId, title:cat.title, titleJapanese:cat.titleJapanese, episodes:cat.episodes, status, seed:false};
+    this.setState({
+      collection:[...this.state.collection, item],
+      sheetOpen:false, screen:'main', tab:0, newId:item.id,
+    });
+    clearTimeout(this._newTimer);
+    this._newTimer = setTimeout(() => this.setState({newId:null}), 600);
+  }
+
+  renderVals(){
+    const s = this.state;
+    const col = this.effectiveCollection();
+    const uiState = this.props.uiState ?? 'normal';
+    const loading = uiState==='loading' || (uiState==='normal' && s.loading);
+    const error = uiState==='error';
+    const watchingCount = col.filter(c=>c.status==='watching').length;
+
+    const libraryCards = col.map(it => {
+      const g = this.grad(it.malId);
+      return {
+        title: it.title, g0:g[0], g1:g[1], glyph:this.glyph(it),
+        statusLabel: STATUS_META[it.status].label,
+        statusColor: STATUS_META[it.status].color,
+        anim: it.id===s.newId ? 'cardIn 340ms cubic-bezier(0.2,0.8,0.2,1)' : 'none',
+        onOpen: () => this.openDetail({malId:it.malId}),
+      };
+    });
+
+    const q = s.query.trim().toLowerCase();
+    const results = q ? this.catalog.filter(a=>a.title.toLowerCase().includes(q)) : this.catalog;
+    const searchCards = results.map(a => {
+      const g = this.grad(a.malId);
+      return {
+        title:a.title, g0:g[0], g1:g[1], glyph:this.glyph(a),
+        meta: `★ ${a.score.toFixed(1)} · ${a.episodes} eps`,
+        inCollection: !!this.findInCollection(a.malId),
+        onOpen: () => this.openDetail({malId:a.malId}),
+      };
+    });
+
+    let detail = null, sheetOptions = [];
+    if (s.screen==='detail' && s.detailRef) {
+      const owned = this.findInCollection(s.detailRef.malId);
+      const cat = this.catalog.find(a=>a.malId===s.detailRef.malId);
+      const src = owned || cat;
+      if (src) {
+        const g = this.grad(src.malId);
+        const metaChips = [];
+        if (src.episodes!=null) metaChips.push({t:src.episodes+' eps'});
+        if (cat && cat.score!=null) metaChips.push({t:'★ '+cat.score.toFixed(1)});
+        if (cat) metaChips.push({t:cat.airing?'Airing':'Finished'});
+        if (owned) metaChips.push({t:STATUS_META[owned.status].label});
+        const statusOptions = owned ? STATUS_ORDER.map(st => {
+          const sel = owned.status===st;
+          return {
+            label:STATUS_META[st].label, weight: sel?700:500,
+            color: sel?'#171B16':'#8C918B', bg: sel?'#B9D4A0':'#1E2126',
+            border: sel?'none':'1px solid rgba(236,237,232,0.08)',
+            onTap: () => this.setStatus(owned, st),
+          };
+        }) : [];
+        detail = {
+          title:src.title, titleJapanese:src.titleJapanese||null,
+          g0:g[0], g1:g[1], glyph:this.glyph(src), metaChips,
+          inCollection: !!owned, notInCollection: !owned,
+          statusOptions,
+        };
+        if (!owned && cat) {
+          sheetOptions = STATUS_ORDER.map(st => ({
+            label: STATUS_META[st].label, tone: STATUS_META[st].color,
+            hint: STATUS_META[st].hint,
+            onTap: () => this.addWithStatus(cat, st),
+          }));
+        }
+      }
+    }
+
+    const navDefs = [{key:'library',label:'Library'},{key:'search',label:'Search'},{key:'settings',label:'Settings'}];
+    const navItems = navDefs.map((n,i) => {
+      const sel = s.tab===i;
+      const color = sel? '#B9D4A0':'#8C918B';
+      return {
+        iconHtml:{__html: NAV_ICONS[n.key].replaceAll('COLOR', color)},
+        label:n.label, color, weight: sel?700:400,
+        dot: sel? '#B9D4A0':'transparent',
+        onTap: () => this.selectTab(i),
+      };
+    });
+
+    return {
+      showFurigana: this.props.showFurigana ?? true,
+      screenAuth: s.screen==='auth',
+      screenMain: s.screen==='main',
+      screenDetail: s.screen==='detail' && !!detail,
+      showLibrary: s.tab===0, showSearch: s.tab===1, showSettings: s.tab===2,
+      navItems, enterApp: this.enterApp, goSearch: this.goSearch, retry: this.retry,
+      librarySummary: error||loading ? 'Your collection' : (col.length===0 ? 'A quiet shelf, waiting.' : `${col.length} in your collection · ${watchingCount} watching`),
+      libLoading: loading && !error,
+      libError: error,
+      libEmpty: !loading && !error && col.length===0,
+      libHasItems: !loading && !error && col.length>0,
+      showFab: !loading && !error && col.length>0,
+      skeletons: [0,1,2,3,4,5].map(i=>({delay:(i*90)+'ms'})),
+      libraryCards, collectionCount: col.length, watchingCount,
+      query: s.query, onQueryInput: this.onQueryInput,
+      searchIdle: false, searchNoResults: q!=='' && results.length===0,
+      searchHasResults: results.length>0,
+      noResultsTitle: `No results for "${s.query.trim()}"`,
+      searchCards,
+      detail, closeDetail: this.closeDetail, removeItem: this.removeItem,
+      openStatusSheet: this.openStatusSheet, closeSheet: this.closeSheet,
+      sheetOpen: s.sheetOpen, sheetOptions,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
