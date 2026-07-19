@@ -7,10 +7,10 @@ import '../theme.dart';
 import '../widgets/furigana_header.dart';
 import '../widgets/screen_header.dart';
 
-/// You (設定): profile summary, derived achievements, and a couple of app rows.
-/// The app is dark-only, so there's no appearance toggle.
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+/// Settings (設定): profile summary, derived achievements, and a couple of
+/// app rows. The app is dark-only, so there's no appearance toggle.
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               furigana: 'せってい',
-              title: 'You',
+              title: 'Settings',
               subtitle: demo
                   ? 'Demo mode · changes reset on reload'
                   : 'Signed in anonymously · synced',

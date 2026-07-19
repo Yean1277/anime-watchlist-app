@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import '../widgets/pressable.dart';
-import 'discover_screen.dart';
 import 'library_screen.dart';
-import 'profile_screen.dart';
-import 'stats_screen.dart';
+import 'search_screen.dart';
+import 'settings_screen.dart';
 
-/// The app shell: four tabs behind a floating, blurred pill nav (spec §2.6).
+/// The app shell: three tabs behind a floating, blurred pill nav
+/// (FDS v1.1 §2: Library / Search / Settings).
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -20,25 +20,22 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _tabs = [
-    LibraryScreen(),
-    DiscoverScreen(),
-    StatsScreen(),
-    ProfileScreen(),
-  ];
-
   static const _items = [
     _NavItem(Icons.collections_bookmark_rounded, 'Library'),
-    _NavItem(Icons.search_rounded, 'Discover'),
-    _NavItem(Icons.insights_rounded, 'Stats'),
-    _NavItem(Icons.person_rounded, 'You'),
+    _NavItem(Icons.search_rounded, 'Search'),
+    _NavItem(Icons.settings_rounded, 'Settings'),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final tabs = [
+      LibraryScreen(onOpenSearch: () => setState(() => _index = 1)),
+      const SearchScreen(),
+      const SettingsScreen(),
+    ];
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(index: _index, children: _tabs),
+      body: IndexedStack(index: _index, children: tabs),
       bottomNavigationBar: _PillNav(
         index: _index,
         items: _items,

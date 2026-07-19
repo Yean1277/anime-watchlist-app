@@ -13,12 +13,15 @@ import '../widgets/hero_card.dart';
 import '../widgets/pressable.dart';
 import '../widgets/screen_header.dart';
 import 'detail_screen.dart';
-import 'search_screen.dart';
 
 /// Home (一覧): a greeting header, a "continue watching" hero, status filter
 /// pills, and the watchlist as ShowCards.
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key});
+  const LibraryScreen({super.key, required this.onOpenSearch});
+
+  /// Switches the shell to the Search tab (FDS v1.1: search is a tab, not a
+  /// pushed route).
+  final VoidCallback onOpenSearch;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -57,9 +60,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return watching.isNotEmpty ? watching.first : null;
   }
 
-  void _openSearch() => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SearchScreen()),
-      );
+  void _openSearch() => widget.onOpenSearch();
 
   void _selectFilter(WatchStatus? f) {
     if (f == _filter) return;
