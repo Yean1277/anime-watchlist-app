@@ -48,7 +48,7 @@ The UI never talks to the network directly. It reads from / calls
 | `lib/models/anime.dart` | Jikan search result model |
 | `lib/models/watchlist_item.dart` | DB row model + `WatchStatus` enum (labels/colors/db strings) |
 | `lib/services/jikan_service.dart` | `search(query)` against the Jikan API |
-| `lib/services/watchlist_service.dart` | Supabase CRUD on the `watchlist` table |
+| `lib/services/watchlist_service.dart` | Supabase CRUD on `user_anime` + `add-to-watchlist` Edge Function calls |
 | `lib/providers/watchlist_provider.dart` | In-memory state + Supabase sync (optimistic) |
 | `lib/screens/home_shell.dart` | 3-tab shell (Library / Search / Settings) with the floating pill nav |
 | `lib/screens/library_screen.dart` | Home: hero, status filter pills, watchlist cards |
@@ -87,6 +87,10 @@ The UI never talks to the network directly. It reads from / calls
   connectivity errors. Don't add raw `http.get` calls outside the service.
 - Native `android/`/`ios/` folders are git-ignored and regenerated via
   `flutter create` (see Commands).
+- Edits to `supabase/functions/add-to-watchlist/index.ts` only take effect
+  after `supabase functions deploy add-to-watchlist` — merging alone deploys
+  nothing. Keep the client tolerant of the previous response shape (see
+  [docs/API_DESIGN.md](docs/API_DESIGN.md)).
 
 ## Branching
 
@@ -102,5 +106,6 @@ categories as commits (`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`,
 - [CONTRIBUTING.md](CONTRIBUTING.md) — branching convention & PR workflow
 - [SETUP.md](SETUP.md) — full setup + end-to-end verification
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — technical deep dive
+- [docs/API_DESIGN.md](docs/API_DESIGN.md) — API contracts, error taxonomy, retry/timeout policies
 - [docs/DECISIONS.md](docs/DECISIONS.md) — why the key choices were made
 - [CHANGELOG.md](CHANGELOG.md) — what changed, by version

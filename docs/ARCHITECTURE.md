@@ -2,7 +2,9 @@
 
 A technical reference for how the anime watchlist app is structured and how data
 flows through it. For *why* these choices were made, see
-[DECISIONS.md](DECISIONS.md); for setup, see [SETUP.md](../SETUP.md).
+[DECISIONS.md](DECISIONS.md); for setup, see [SETUP.md](../SETUP.md); for the
+network contracts (endpoints, error codes, retry/timeout policies), see
+[API_DESIGN.md](API_DESIGN.md).
 
 ## Layered overview
 
