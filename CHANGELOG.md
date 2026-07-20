@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (migration noted in SETUP.md).
 
 ### Changed
+- **Navigation aligned with FDS v1.1 — 3 tabs**: the bottom nav is now
+  Library / Search / Settings. The Discover and Stats tabs were removed,
+  Search was promoted from a pushed route to a tab (its idle state shows the
+  top-airing ranking so covers appear immediately), and the You screen was
+  renamed Settings. The Library FAB and empty-state CTA now switch to the
+  Search tab instead of pushing a route.
 - **UI refinement pass**: Inter is now bundled as the app font with a proper
   theme-level type scale; the Search screen was rebuilt to match the app's
   design language (filled rounded search field, `CoverTile` covers, friendly

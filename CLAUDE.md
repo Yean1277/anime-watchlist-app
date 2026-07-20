@@ -50,10 +50,12 @@ The UI never talks to the network directly. It reads from / calls
 | `lib/services/jikan_service.dart` | `search(query)` against the Jikan API |
 | `lib/services/watchlist_service.dart` | Supabase CRUD on the `watchlist` table |
 | `lib/providers/watchlist_provider.dart` | In-memory state + Supabase sync (optimistic) |
-| `lib/screens/watchlist_screen.dart` | Home: status filter tabs + list, FAB → search |
-| `lib/screens/search_screen.dart` | Debounced Jikan search, tap to add |
-| `lib/widgets/watchlist_card.dart` | List row: cover, title, status menu, delete |
-| `lib/widgets/status_chip.dart` | Colored status label |
+| `lib/screens/home_shell.dart` | 3-tab shell (Library / Search / Settings) with the floating pill nav |
+| `lib/screens/library_screen.dart` | Home: hero, status filter pills, watchlist cards |
+| `lib/screens/search_screen.dart` | Search tab: debounced Jikan search, top-airing idle state, tap to add |
+| `lib/screens/settings_screen.dart` | Settings: profile summary, achievements, about |
+| `lib/screens/detail_screen.dart` | Show detail: status, episode progress, star rating |
+| `lib/widgets/anime_card.dart` | List row: cover, title, status, progress |
 | `test/watchlist_item_test.dart` | Unit tests for status serialization |
 
 ## Conventions
