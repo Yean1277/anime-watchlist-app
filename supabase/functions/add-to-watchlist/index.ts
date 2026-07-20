@@ -9,6 +9,10 @@
 //      never blocks the response.
 //   4. Write user_anime using the caller's own identity, so RLS still
 //      applies (least privilege).
+//
+// Changes here only take effect after a redeploy:
+//   supabase functions deploy add-to-watchlist
+// Contract details live in docs/API_DESIGN.md.
 // =====================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -39,6 +43,11 @@ const corsHeaders = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+const JIKAN_TIMEOUT_MS = 8_000 // Per-request deadline; a hung Jikan fetch must not hang the function.
+const JIKAN_MAX_ATTEMPTS = 3
+const JIKAN_RETRY_BASE_MS = 400
+const JIKAN_MAX_HONORED_RETRY_AFTER_MS = 2_000
+
 // Jikan gives ISO timestamps; our columns are `date`, so just take the first 10 chars.
 const toDate = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : null)
 
@@ -49,12 +58,51 @@ function json(body: unknown, status = 200) {
   })
 }
 
+// 429/5xx from Jikan are routinely transient, so retry with a short backoff
+// (honoring small integer Retry-After values) before surfacing an error.
 async function fetchJikan(path: string) {
-  const res = await fetch(`${JIKAN}${path}`)
-  if (res.status === 404) throw Object.assign(new Error('Anime not found on MAL'), { status: 404 })
-  if (res.status === 429) throw Object.assign(new Error('Jikan rate limited, retry later'), { status: 503 })
-  if (!res.ok) throw Object.assign(new Error(`Jikan error ${res.status}`), { status: 502 })
-  return res.json()
+  for (let attempt = 0; attempt < JIKAN_MAX_ATTEMPTS; attempt++) {
+    const isLastAttempt = attempt === JIKAN_MAX_ATTEMPTS - 1
+    const backoffMs = JIKAN_RETRY_BASE_MS * 2 ** attempt
+
+    let res: Response
+    try {
+      res = await fetch(`${JIKAN}${path}`, { signal: AbortSignal.timeout(JIKAN_TIMEOUT_MS) })
+    } catch (e) {
+      if (isLastAttempt) {
+        throw Object.assign(new Error('Jikan did not respond in time'), { status: 504, cause: e })
+      }
+      await sleep(backoffMs)
+      continue
+    }
+
+    if (res.ok) return res.json()
+    if (res.status === 404) throw Object.assign(new Error('Anime not found on MAL'), { status: 404 })
+
+    if (res.status === 429) {
+      const retryAfterMs = parseRetryAfterMs(res)
+      if (isLastAttempt || (retryAfterMs !== null && retryAfterMs > JIKAN_MAX_HONORED_RETRY_AFTER_MS)) {
+        throw Object.assign(new Error('Jikan rate limited, retry later'), { status: 503 })
+      }
+      await sleep(retryAfterMs ?? backoffMs)
+      continue
+    }
+
+    if (res.status >= 500 && !isLastAttempt) {
+      await sleep(backoffMs)
+      continue
+    }
+    throw Object.assign(new Error(`Jikan error ${res.status}`), { status: 502 })
+  }
+  throw Object.assign(new Error('Jikan retries exhausted'), { status: 502 }) // unreachable
+}
+
+// Integer-seconds Retry-After (the form Jikan uses); null for absent/HTTP-date values.
+function parseRetryAfterMs(res: Response): number | null {
+  const raw = res.headers.get('retry-after')
+  if (!raw) return null
+  const seconds = Number.parseInt(raw.trim(), 10)
+  return Number.isNaN(seconds) ? null : seconds * 1000
 }
 
 // ---------- Sync anime core data + genres (1 Jikan request, blocking but fast) ----------
@@ -97,15 +145,20 @@ async function syncAnime(malId: number) {
     list.map((g) => ({ mal_id: g.mal_id, name: g.name, category })),
   )
   // A single upsert batch can't contain duplicate keys, so dedupe first.
+  // Genres are cosmetic cache data: once the anime row has landed, a genre
+  // write failure must not fail the user's add. Self-heals on the next sync.
   const uniq = [...new Map(rows.map((g) => [g.mal_id, g])).values()]
   if (uniq.length > 0) {
     const { error: gErr } = await admin.from('genres').upsert(uniq, { onConflict: 'mal_id' })
-    if (gErr) throw gErr
+    if (gErr) {
+      console.error(`genre sync failed for ${malId}:`, gErr)
+      return
+    }
     const { error: agErr } = await admin.from('anime_genres').upsert(
       uniq.map((g) => ({ anime_id: malId, genre_id: g.mal_id })),
       { onConflict: 'anime_id,genre_id', ignoreDuplicates: true },
     )
-    if (agErr) throw agErr
+    if (agErr) console.error(`anime_genres sync failed for ${malId}:`, agErr)
   }
 }
 
@@ -155,10 +208,18 @@ Deno.serve(async (req) => {
     if (authError || !user) return json({ error: 'Invalid token' }, 401)
 
     // ---------- 2. Validate input ----------
-    const { mal_id, status = 'plan_to_watch' } = await req.json()
+    let body: { mal_id?: unknown; status?: unknown }
+    try {
+      body = await req.json()
+    } catch (_) {
+      return json({ error: 'Invalid JSON body' }, 400)
+    }
+    const { mal_id, status = 'plan_to_watch' } = body
     const malId = Number(mal_id)
     if (!Number.isInteger(malId) || malId <= 0) return json({ error: 'Invalid mal_id' }, 400)
-    if (!VALID_STATUS.includes(status)) return json({ error: 'Invalid status' }, 400)
+    if (typeof status !== 'string' || !VALID_STATUS.includes(status)) {
+      return json({ error: 'Invalid status' }, 400)
+    }
 
     // ---------- 3. Check cache freshness; only hit Jikan when stale ----------
     const { data: cached } = await admin
@@ -178,7 +239,7 @@ Deno.serve(async (req) => {
     // ---------- 4. Write user_anime under the caller's identity ----------
     // ignoreDuplicates: re-adding an existing entry leaves it untouched (won't reset
     // "watching" back to "plan_to_watch").
-    const { data: entry, error: insertError } = await userClient
+    const { data: inserted, error: insertError } = await userClient
       .from('user_anime')
       .upsert(
         { user_id: user.id, anime_id: malId, status },
@@ -188,7 +249,24 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (insertError) throw insertError
 
-    return json({ ok: true, entry, already_in_list: entry === null })
+    // Duplicate add: the ignored upsert returns null, so fetch the existing
+    // row and return it — the response always carries the entry, sparing
+    // clients a follow-up query. (Older clients that still expect a possible
+    // null entry keep working: entry is simply never null anymore.)
+    let entry = inserted
+    const alreadyInList = inserted === null
+    if (alreadyInList) {
+      const { data: existing, error: fetchError } = await userClient
+        .from('user_anime')
+        .select('*, anime(*)')
+        .eq('user_id', user.id)
+        .eq('anime_id', malId)
+        .maybeSingle()
+      if (fetchError) throw fetchError
+      entry = existing
+    }
+
+    return json({ ok: true, entry, already_in_list: alreadyInList })
   } catch (e) {
     console.error(e)
     return json({ error: (e as Error).message }, (e as any).status ?? 500)

@@ -132,8 +132,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   const EdgeInsets.fromLTRB(16, 4, 16, 4),
                               child: HeroCard(
                                 item: hero,
-                                onWatched: () => provider.updateProgress(
-                                    hero, hero.episodesWatched + 1),
+                                onWatched: () async {
+                                  try {
+                                    await provider.updateProgress(
+                                        hero, hero.episodesWatched + 1);
+                                  } catch (_) {
+                                    // Rolled back by the provider — say so.
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor:
+                                            AppColor.surfaceRaised,
+                                        content: Text(
+                                            "Couldn't save — change reverted",
+                                            style: AppText.body),
+                                      ),
+                                    );
+                                  }
+                                },
                                 onTap: () =>
                                     DetailScreen.open(context, hero.id),
                               ),
@@ -183,6 +200,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 duration: AppMotion.base,
                                 curve: AppMotion.curve),
                   ),
+                )
+              else if (provider.items.isEmpty && provider.error != null)
+                // A failed initial load must not masquerade as an empty
+                // library — offer a retry instead.
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _errorState(provider),
                 )
               else if (items.isEmpty)
                 SliverFillRemaining(
@@ -268,6 +292,39 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onTap: () => _selectFilter(f),
           );
         },
+      ),
+    );
+  }
+
+  Widget _errorState(WatchlistProvider provider) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 20, 32, 120),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('よみこめませんでした', style: AppText.furigana.copyWith(fontSize: 9)),
+          const SizedBox(height: 12),
+          const Text("Couldn't load your shows.",
+              textAlign: TextAlign.center, style: AppText.titleS),
+          const SizedBox(height: 6),
+          const Text('Check your connection and try again.',
+              textAlign: TextAlign.center, style: AppText.caption),
+          const SizedBox(height: 18),
+          Pressable(
+            onTap: provider.load,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColor.accent,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                boxShadow: AppColor.ctaGlow,
+              ),
+              child: Text('Retry',
+                  style: AppText.titleS.copyWith(color: AppColor.onAccent)),
+            ),
+          ),
+        ],
       ),
     );
   }
