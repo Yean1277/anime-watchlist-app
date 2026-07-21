@@ -33,6 +33,36 @@ class JikanApiException extends JikanException {
   final int statusCode;
 }
 
+/// Outcome of a single HTTP attempt inside the retry loop.
+///
+/// Modeling each attempt as one of three results — succeed, retry, or give up —
+/// lets the retry/backoff plumbing live in one place instead of being repeated
+/// for every failure mode (network, timeout, 429, 5xx).
+sealed class _Attempt {
+  const _Attempt();
+}
+
+/// The request succeeded; [anime] is the parsed result set.
+class _Success extends _Attempt {
+  const _Success(this.anime);
+  final List<Anime> anime;
+}
+
+/// The request failed transiently. Wait [delay] (falling back to the caller's
+/// backoff when null) and try again — unless this was the final attempt, in
+/// which case [onExhausted] is thrown.
+class _Retry extends _Attempt {
+  const _Retry({required this.onExhausted, this.delay});
+  final Duration? delay;
+  final JikanException onExhausted;
+}
+
+/// The request failed in a way retrying can't heal; throw [error] immediately.
+class _Fail extends _Attempt {
+  const _Fail(this.error);
+  final JikanException error;
+}
+
 /// Searches anime via the free Jikan API (MyAnimeList).
 ///
 /// Jikan rate-limits aggressively (~3 req/s, 60/min), so transient 429s are
@@ -47,6 +77,7 @@ class JikanService {
     this.retryBaseDelay = const Duration(milliseconds: 350),
     Future<void> Function(Duration delay)? sleep,
   })  : _client = client ?? http.Client(),
+        _ownsClient = client == null,
         _sleep = sleep ?? Future<void>.delayed;
 
   static const String _base = 'https://api.jikan.moe/v4';
@@ -56,6 +87,7 @@ class JikanService {
   static const Duration _maxHonoredRetryAfter = Duration(seconds: 2);
 
   final http.Client _client;
+  final bool _ownsClient;
   final Duration timeout;
   final int maxAttempts;
   final Duration retryBaseDelay;
@@ -67,65 +99,91 @@ class JikanService {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
 
-    final uri = Uri.parse(
-      '$_base/anime?q=${Uri.encodeQueryComponent(trimmed)}&limit=20&sfw=true',
-    );
+    final uri = Uri.parse('$_base/anime').replace(queryParameters: {
+      'q': trimmed,
+      'limit': '20',
+      'sfw': 'true',
+    });
     return _fetchList(uri);
   }
 
   /// Returns the current top-ranked airing anime (for the Discover tab).
+  ///
+  /// [limit] is clamped to Jikan's supported 1–25 range, so out-of-range
+  /// callers get a sane request instead of an API-side rejection.
   Future<List<Anime>> topAiring({int limit = 25}) async {
-    final uri = Uri.parse('$_base/top/anime?filter=airing&limit=$limit&sfw=true');
+    final safeLimit = limit.clamp(1, 25);
+    final uri = Uri.parse('$_base/top/anime').replace(queryParameters: {
+      'filter': 'airing',
+      'limit': '$safeLimit',
+      'sfw': 'true',
+    });
     return _fetchList(uri);
   }
 
+  /// Drives the retry loop: classify each attempt, then either return, wait and
+  /// retry, or throw. All the backoff bookkeeping lives here — [_classify] only
+  /// decides what a given response/error *means*.
   Future<List<Anime>> _fetchList(Uri uri) async {
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       final isLastAttempt = attempt == maxAttempts - 1;
       final backoff = retryBaseDelay * (1 << attempt);
 
-      http.Response response;
-      try {
-        response = await _client
-            .get(uri, headers: const {'Accept': 'application/json'})
-            .timeout(timeout);
-        // http >=1.0 wraps socket/DNS failures in ClientException on every
-        // platform (incl. web), so no dart:io import is needed here.
-      } on http.ClientException {
-        if (isLastAttempt) throw const JikanNetworkException();
-        await _sleep(backoff);
-        continue;
-      } on TimeoutException {
-        if (isLastAttempt) throw const JikanNetworkException();
-        await _sleep(backoff);
-        continue;
+      final result = await _classify(uri);
+      switch (result) {
+        case _Success(:final anime):
+          return anime;
+        case _Fail(:final error):
+          throw error;
+        case _Retry(:final delay, :final onExhausted):
+          if (isLastAttempt) throw onExhausted;
+          await _sleep(delay ?? backoff);
       }
-
-      if (response.statusCode == 200) {
-        return _parseList(response);
-      }
-
-      if (response.statusCode == 429) {
-        final retryAfter = _retryAfterDelay(response);
-        if (isLastAttempt ||
-            (retryAfter != null && retryAfter > _maxHonoredRetryAfter)) {
-          throw const JikanRateLimitException();
-        }
-        await _sleep(retryAfter ?? backoff);
-        continue;
-      }
-
-      if (response.statusCode >= 500) {
-        if (isLastAttempt) throw JikanApiException(response.statusCode);
-        await _sleep(backoff);
-        continue;
-      }
-
-      // Remaining 4xx are our fault (bad query, gone endpoint) — retrying
-      // won't heal them.
-      throw JikanApiException(response.statusCode);
     }
     throw const JikanNetworkException(); // unreachable; loop always exits above
+  }
+
+  /// Performs one HTTP attempt and maps the response (or thrown error) onto an
+  /// [_Attempt]. Contains no retry/sleep logic — that's [_fetchList]'s job.
+  Future<_Attempt> _classify(Uri uri) async {
+    final http.Response response;
+    try {
+      response = await _client
+          .get(uri, headers: const {'Accept': 'application/json'})
+          .timeout(timeout);
+      // http >=1.0 wraps socket/DNS failures in ClientException on every
+      // platform (incl. web), so no dart:io import is needed here.
+    } on http.ClientException {
+      return const _Retry(onExhausted: JikanNetworkException());
+    } on TimeoutException {
+      return const _Retry(onExhausted: JikanNetworkException());
+    }
+
+    final status = response.statusCode;
+
+    if (status == 200) {
+      return _Success(_parseList(response));
+    }
+
+    if (status == 429) {
+      final retryAfter = _retryAfterDelay(response);
+      // A Retry-After we can't honor interactively means give up now.
+      if (retryAfter != null && retryAfter > _maxHonoredRetryAfter) {
+        return const _Fail(JikanRateLimitException());
+      }
+      return _Retry(
+        delay: retryAfter,
+        onExhausted: const JikanRateLimitException(),
+      );
+    }
+
+    if (status >= 500) {
+      return _Retry(onExhausted: JikanApiException(status));
+    }
+
+    // Remaining 4xx are our fault (bad query, gone endpoint) — retrying
+    // won't heal them.
+    return _Fail(JikanApiException(status));
   }
 
   List<Anime> _parseList(http.Response response) {
@@ -161,5 +219,12 @@ class JikanService {
     if (raw == null) return null;
     final seconds = int.tryParse(raw.trim());
     return seconds == null ? null : Duration(seconds: seconds);
+  }
+
+  /// Closes the underlying [http.Client] — but only if this service created it.
+  /// When a client was injected, its lifecycle belongs to the caller, so
+  /// closing it here would be a surprise; that case is deliberately a no-op.
+  void dispose() {
+    if (_ownsClient) _client.close();
   }
 }

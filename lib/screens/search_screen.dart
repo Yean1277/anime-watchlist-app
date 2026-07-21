@@ -55,6 +55,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
+    _jikan.dispose();
     super.dispose();
   }
 
