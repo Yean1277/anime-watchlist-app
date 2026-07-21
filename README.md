@@ -89,4 +89,7 @@ repository **Secrets** and the workflow will use them.
 
 This project uses **GitHub Flow** with category-prefixed branches
 (`feat/`, `fix/`, `docs/`, …). See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-branch-naming convention and pull-request workflow.
+branch-naming convention and pull-request workflow. Architecture notes live in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and the network contracts
+(endpoints, error codes, retry/timeout policies) in
+[docs/API_DESIGN.md](docs/API_DESIGN.md).

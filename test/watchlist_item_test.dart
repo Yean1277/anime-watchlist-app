@@ -62,5 +62,52 @@ void main() {
       expect(updated.malId, item.malId);
       expect(updated.title, item.title);
     });
+
+    test('fromJson tolerates a row with no joined anime map', () {
+      final item = WatchlistItem.fromJson({
+        'anime_id': 20,
+        'status': 'watching',
+      });
+      expect(item.malId, 20);
+      expect(item.title, 'Unknown');
+      expect(item.episodes, isNull);
+      expect(item.episodesWatched, 0);
+    });
+
+    test('fromJson accepts numeric fields decoded as num', () {
+      final item = WatchlistItem.fromJson({
+        'anime_id': 20.0,
+        'status': 'watching',
+        'episodes_watched': 5.0,
+        'score': 8.0,
+        'anime': {'episodes': 220.0},
+      });
+      expect(item.malId, 20);
+      expect(item.episodesWatched, 5);
+      expect(item.score, 8);
+      expect(item.episodes, 220);
+    });
+
+    test('fromJson falls back to planToWatch on a missing status', () {
+      final item = WatchlistItem.fromJson({'anime_id': 20});
+      expect(item.status, WatchStatus.planToWatch);
+    });
+
+    test('fromJson throws FormatException when anime_id is missing', () {
+      expect(
+        () => WatchlistItem.fromJson({'status': 'watching'}),
+        throwsFormatException,
+      );
+    });
+
+    test('star mapping round-trips within the documented lossy bounds', () {
+      for (var stars = 1; stars <= 5; stars++) {
+        final score = WatchlistItem.starsToScore(stars);
+        expect(score, inInclusiveRange(1, 10));
+        final item = WatchlistItem.fromJson(
+            {'anime_id': 1, 'status': 'watching', 'score': score});
+        expect(item.scoreStars, stars);
+      }
+    });
   });
 }

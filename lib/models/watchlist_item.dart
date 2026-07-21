@@ -120,19 +120,26 @@ class WatchlistItem {
   static int starsToScore(int stars) => (stars * 2).clamp(1, 10).toInt();
 
   /// Parses a `user_anime` row fetched with `.select('*, anime(*)')`.
+  ///
+  /// Display fields degrade gracefully when absent, but a row without an
+  /// `anime_id` has no identity and fails loudly rather than corrupting state.
   factory WatchlistItem.fromJson(Map<String, dynamic> json) {
     final anime = json['anime'] as Map<String, dynamic>? ?? const {};
-    final malId = json['anime_id'] as int;
+    final rawMalId = json['anime_id'];
+    if (rawMalId is! num) {
+      throw const FormatException('user_anime row is missing anime_id');
+    }
+    final malId = rawMalId.toInt();
     return WatchlistItem(
       id: malId.toString(),
       malId: malId,
-      title: (anime['title'] ?? 'Unknown') as String,
+      title: anime['title'] is String ? anime['title'] as String : 'Unknown',
       titleJapanese: anime['title_japanese'] as String?,
       imageUrl: anime['image_url'] as String?,
-      episodes: anime['episodes'] as int?,
-      episodesWatched: (json['episodes_watched'] as int?) ?? 0,
-      score: json['score'] as int?,
-      status: WatchStatus.fromDb(json['status'] as String),
+      episodes: (anime['episodes'] as num?)?.toInt(),
+      episodesWatched: (json['episodes_watched'] as num?)?.toInt() ?? 0,
+      score: (json['score'] as num?)?.toInt(),
+      status: WatchStatus.fromDb(json['status'] as String? ?? ''),
     );
   }
 

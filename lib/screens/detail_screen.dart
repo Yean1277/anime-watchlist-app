@@ -13,6 +13,26 @@ import '../widgets/furigana_header.dart';
 import '../widgets/progress_ring.dart';
 import '../widgets/star_rating.dart';
 
+/// Awaits a provider mutation and tells the user when it fails: the provider
+/// rolls back its optimistic update and rethrows, so without this the change
+/// would silently snap back with no explanation.
+Future<void> _saveGuarded(
+    BuildContext context, Future<void> Function() persist) async {
+  try {
+    await persist();
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColor.surfaceRaised,
+        content:
+            Text("Couldn't save — change reverted", style: AppText.body),
+      ),
+    );
+  }
+}
+
 /// Full-page 詳細 (spec §3 / detail): a cover hero, a progress-ring card, the
 /// episode grid, status + rating editors, and a sticky matcha CTA that records
 /// the next episode. Replaces the old bottom sheet.
@@ -112,8 +132,8 @@ class DetailScreen extends StatelessWidget {
           EpisodeGrid(
             total: total,
             watched: watched,
-            onSet: (n) =>
-                context.read<WatchlistProvider>().updateProgress(it, n),
+            onSet: (n) => _saveGuarded(context,
+                () => context.read<WatchlistProvider>().updateProgress(it, n)),
           ),
         const FuriganaHeader(
           title: 'Status',
@@ -127,8 +147,8 @@ class DetailScreen extends StatelessWidget {
             return FilterPill(
               label: s.label,
               selected: s == it.status,
-              onTap: () =>
-                  context.read<WatchlistProvider>().updateStatus(it, s),
+              onTap: () => _saveGuarded(context,
+                  () => context.read<WatchlistProvider>().updateStatus(it, s)),
             );
           }).toList(),
         ),
@@ -140,14 +160,31 @@ class DetailScreen extends StatelessWidget {
         StarRating(
           score: it.scoreStars,
           size: 30,
-          onRate: (v) => context.read<WatchlistProvider>().updateScore(
-              it, v == null ? null : WatchlistItem.starsToScore(v)),
+          onRate: (v) => _saveGuarded(
+              context,
+              () => context.read<WatchlistProvider>().updateScore(
+                  it, v == null ? null : WatchlistItem.starsToScore(v))),
         ),
         const SizedBox(height: 20),
         Center(
           child: TextButton.icon(
             onPressed: () async {
-              await context.read<WatchlistProvider>().remove(it);
+              try {
+                await context.read<WatchlistProvider>().remove(it);
+              } catch (_) {
+                // Rolled back by the provider — stay on the page and say so.
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppColor.surfaceRaised,
+                      content: Text("Couldn't remove — try again",
+                          style: AppText.body),
+                    ),
+                  );
+                }
+                return;
+              }
               if (context.mounted) Navigator.of(context).pop();
             },
             style: TextButton.styleFrom(
@@ -338,7 +375,8 @@ class _RecordCtaState extends State<_RecordCta>
     if (total != null && it.episodesWatched >= total) return;
 
     HapticFeedback.selectionClick();
-    context.read<WatchlistProvider>().updateProgress(it, next);
+    _saveGuarded(
+        context, () => context.read<WatchlistProvider>().updateProgress(it, next));
 
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;

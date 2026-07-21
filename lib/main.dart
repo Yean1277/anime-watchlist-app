@@ -24,23 +24,29 @@ Future<void> main() async {
 
   final configured = _looksConfigured(url, anonKey);
 
-  late final WatchlistRepository repository;
+  WatchlistRepository? repository;
   if (configured) {
-    // Production: real Supabase backend with anonymous auth.
-    await Supabase.initialize(url: url, anonKey: anonKey);
-    final auth = Supabase.instance.client.auth;
-    if (auth.currentSession == null) {
-      await auth.signInAnonymously();
+    // Production: real Supabase backend with anonymous auth. If init or the
+    // anonymous sign-in fails (auth provider disabled, offline at launch),
+    // degrade to demo mode instead of crashing before the first frame.
+    try {
+      await Supabase.initialize(url: url, anonKey: anonKey);
+      final auth = Supabase.instance.client.auth;
+      if (auth.currentSession == null) {
+        await auth.signInAnonymously();
+      }
+      repository = WatchlistService();
+    } catch (e) {
+      debugPrint('Supabase init/sign-in failed, falling back to demo mode: $e');
     }
-    repository = WatchlistService();
-  } else {
-    // Demo mode: no credentials -> in-memory store so the UI is still browsable.
-    repository = InMemoryWatchlistRepository();
   }
+  // Demo mode: no credentials (or startup failure) -> in-memory store so the
+  // UI is still browsable.
+  repository ??= InMemoryWatchlistRepository();
 
   runApp(AnimeWatchlistApp(
     repository: repository,
-    demoMode: !configured,
+    demoMode: repository is InMemoryWatchlistRepository,
   ));
 }
 

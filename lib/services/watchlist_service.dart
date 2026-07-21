@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/anime.dart';
@@ -6,7 +8,7 @@ import 'watchlist_repository.dart';
 
 /// CRUD operations against the `user_anime` table (joined with the `anime`
 /// cache table for display fields), plus the `add-to-watchlist` Edge Function
-/// for inserts.
+/// for inserts. Contract details live in docs/API_DESIGN.md.
 ///
 /// Every query filters by the signed-in (anonymous) user's id explicitly:
 /// the `user_anime` SELECT policy intentionally also exposes other users'
@@ -17,17 +19,41 @@ class WatchlistService implements WatchlistRepository {
   WatchlistService([SupabaseClient? client])
       : _client = client ?? Supabase.instance.client;
 
+  /// Plain table reads/writes should answer well within this.
+  static const Duration _dbTimeout = Duration(seconds: 10);
+
+  /// The Edge Function may retry Jikan server-side, so give it more room.
+  static const Duration _functionTimeout = Duration(seconds: 20);
+
   SupabaseQueryBuilder get _table => _client.from('user_anime');
 
-  /// Non-null by construction: main.dart signs in before creating the service.
-  String get _uid => _client.auth.currentUser!.id;
+  /// main.dart signs in before creating the service, but a session can still
+  /// be lost at runtime — fail with a clear message instead of a null crash.
+  String get _uid {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Not signed in — cannot access the watchlist');
+    }
+    return user.id;
+  }
+
+  /// [WatchlistItem.id] is the mal_id as a string (see the model); anything
+  /// else means the caller mixed in ids from another repository.
+  int _animeId(String id) {
+    final parsed = int.tryParse(id);
+    if (parsed == null) {
+      throw ArgumentError.value(id, 'id', 'not a numeric watchlist item id');
+    }
+    return parsed;
+  }
 
   @override
   Future<List<WatchlistItem>> fetchAll() async {
     final rows = await _table
         .select('*, anime(*)')
         .eq('user_id', _uid)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .timeout(_dbTimeout);
     return (rows as List<dynamic>)
         .map((r) => WatchlistItem.fromJson(r as Map<String, dynamic>))
         .toList();
@@ -43,21 +69,25 @@ class WatchlistService implements WatchlistRepository {
       final response = await _client.functions.invoke(
         'add-to-watchlist',
         body: {'mal_id': anime.malId, 'status': status.dbValue},
-      );
-      final data = response.data as Map<String, dynamic>;
-      final entry = data['entry'] as Map<String, dynamic>?;
+      ).timeout(_functionTimeout);
+      final data = response.data;
+      final entry = data is Map<String, dynamic>
+          ? data['entry'] as Map<String, dynamic>?
+          : null;
       if (entry != null) {
         return WatchlistItem.fromJson(entry);
       }
-      // already_in_list: true - the upsert skipped an existing row, so fetch
-      // it directly instead of trusting a null entry. The user_id filter is
-      // what makes .single() safe: without it, another user publicly tracking
-      // the same anime would make this query return multiple rows.
+      // Deployed functions since the duplicate-path fix always return the
+      // entry, but tolerate a null from an older deployment by fetching the
+      // row directly. The user_id filter is what makes .single() safe:
+      // without it, another user publicly tracking the same anime would make
+      // this query return multiple rows.
       final existing = await _table
           .select('*, anime(*)')
           .eq('user_id', _uid)
           .eq('anime_id', anime.malId)
-          .single();
+          .single()
+          .timeout(_dbTimeout);
       return WatchlistItem.fromJson(existing);
     } on FunctionException catch (e) {
       final details = e.details;
@@ -65,6 +95,8 @@ class WatchlistService implements WatchlistRepository {
           ? details['error'] as String
           : 'Could not add anime (${e.status})';
       throw Exception(message);
+    } on TimeoutException {
+      throw Exception('Adding timed out — check your connection and retry');
     }
   }
 
@@ -73,7 +105,8 @@ class WatchlistService implements WatchlistRepository {
     await _table
         .update({'status': status.dbValue})
         .eq('user_id', _uid)
-        .eq('anime_id', int.parse(id));
+        .eq('anime_id', _animeId(id))
+        .timeout(_dbTimeout);
   }
 
   @override
@@ -81,7 +114,8 @@ class WatchlistService implements WatchlistRepository {
     await _table
         .update({'episodes_watched': episodesWatched})
         .eq('user_id', _uid)
-        .eq('anime_id', int.parse(id));
+        .eq('anime_id', _animeId(id))
+        .timeout(_dbTimeout);
   }
 
   @override
@@ -89,11 +123,16 @@ class WatchlistService implements WatchlistRepository {
     await _table
         .update({'score': score})
         .eq('user_id', _uid)
-        .eq('anime_id', int.parse(id));
+        .eq('anime_id', _animeId(id))
+        .timeout(_dbTimeout);
   }
 
   @override
   Future<void> remove(String id) async {
-    await _table.delete().eq('user_id', _uid).eq('anime_id', int.parse(id));
+    await _table
+        .delete()
+        .eq('user_id', _uid)
+        .eq('anime_id', _animeId(id))
+        .timeout(_dbTimeout);
   }
 }

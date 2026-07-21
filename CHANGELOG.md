@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **API stability pass** (see the new [docs/API_DESIGN.md](docs/API_DESIGN.md)):
+  - The `add-to-watchlist` Edge Function now times out and retries its Jikan
+    fetches (429/5xx, honoring small `Retry-After` values), returns the
+    existing row on duplicate adds instead of `null` (sparing the client a
+    follow-up query), rejects malformed JSON bodies with 400, and no longer
+    fails an add when only the genre cache write fails. **Requires
+    `supabase functions deploy add-to-watchlist` to take effect.**
+  - App startup no longer crashes when Supabase init or anonymous sign-in
+    fails (e.g. anonymous auth disabled, offline at launch) — it degrades to
+    demo mode like a missing `.env` already did.
+  - `WatchlistService` guards against a lost session and non-numeric ids with
+    clear errors, and applies timeouts to all Supabase calls.
+  - `Anime`/`WatchlistItem` JSON parsing tolerates missing display fields and
+    `num`-decoded integers instead of crashing on unguarded casts.
+  - Failed watchlist mutations now tell the user ("Couldn't save — change
+    reverted") instead of silently snapping back, and a failed initial load
+    shows an error state with Retry instead of an empty library.
+- Unit tests for the provider's optimistic rollback and for malformed model
+  JSON.
 - **Search resilience**: Jikan's rate limits (429) and transient errors no
   longer fail a search outright — `JikanService` now retries with a short
   backoff (honoring small `Retry-After` values) and a request timeout, skips

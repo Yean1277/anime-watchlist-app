@@ -25,11 +25,11 @@ class Anime {
     final jpg = images?['jpg'] as Map<String, dynamic>?;
     final genresJson = (json['genres'] as List<dynamic>?) ?? const [];
     return Anime(
-      malId: json['mal_id'] as int,
-      title: (json['title'] ?? 'Unknown') as String,
+      malId: (json['mal_id'] as num).toInt(),
+      title: json['title'] is String ? json['title'] as String : 'Unknown',
       titleJapanese: json['title_japanese'] as String?,
       imageUrl: jpg?['image_url'] as String?,
-      episodes: json['episodes'] as int?,
+      episodes: (json['episodes'] as num?)?.toInt(),
       score: (json['score'] as num?)?.toDouble(),
       airing: (json['airing'] as bool?) ?? false,
       genres: genresJson
