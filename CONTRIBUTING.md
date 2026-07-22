@@ -1,28 +1,28 @@
 # Contributing
 
-Thanks for helping out! This project follows **GitHub Flow** — a lightweight
-branch-and-pull-request workflow that keeps `main` always deployable.
+Thanks! Project use **GitHub Flow** — light branch-and-pull-request flow. Keeps
+`main` always deployable.
 
 ## The workflow in brief
 
-1. **Branch** off the latest `main` using a category-prefixed name (see below).
-2. **Commit** small, focused changes with conventional-commit messages.
-3. **Open a Pull Request** against `main`; fill in the PR template.
-4. **Review & CI** — get a review and make sure checks pass.
-5. **Merge** into `main`, then **delete** the branch.
+1. **Branch** off latest `main`. Category-prefixed name (see below).
+2. **Commit** small, focused changes. Conventional-commit messages.
+3. **Open Pull Request** against `main`. Fill PR template.
+4. **Review & CI** — get review. Checks must pass.
+5. **Merge** into `main`. Then **delete** branch.
 
-`main` is the single long-lived branch. There is no `develop` or `release`
-branch — every change is a short-lived branch that merges back into `main`.
+`main` = single long-lived branch. No `develop`, no `release` branch. Every
+change short-lived branch. Merges back into `main`.
 
 ## Branch naming
 
-Use a **category prefix** so every branch (and its PR) is self-categorizing:
+Use **category prefix**. Every branch (and PR) self-categorizing:
 
 ```
 <category>/<short-kebab-description>
 ```
 
-Optionally include an issue number: `<category>/<issue#>-<description>`
+Optional issue number: `<category>/<issue#>-<description>`
 (e.g. `feat/42-status-filter`).
 
 | Prefix      | Use for                                  | Example                          |
@@ -42,8 +42,8 @@ git switch -c feat/status-filter-tabs
 
 ## Commit messages
 
-Match the existing history: [Conventional Commits](https://www.conventionalcommits.org)
-using the **same categories** as the branch prefixes, with an optional scope.
+Match existing history: [Conventional Commits](https://www.conventionalcommits.org).
+**Same categories** as branch prefixes. Optional scope.
 
 ```
 feat(watchlist): add status filter tabs
@@ -51,23 +51,21 @@ fix(search): debounce Jikan requests to 450ms
 docs: document the branching convention
 ```
 
-Keeping the branch prefix, commit type, and PR category aligned makes history
-easy to scan.
+Align branch prefix, commit type, PR category. History easy to scan.
 
 ## Pull requests
 
 - Base every PR on `main`.
-- The PR title should mirror the branch category, e.g.
-  `feat: add status filter tabs`.
-- Fill in the [PR template](.github/pull_request_template.md), including the
-  **Type of change** checkbox.
-- Keep PRs small and focused — one category of change per PR.
-- Make sure `flutter test` passes before requesting review.
+- PR title mirrors branch category, e.g. `feat: add status filter tabs`.
+- Fill [PR template](.github/pull_request_template.md). Include **Type of
+  change** checkbox.
+- Keep PRs small, focused — one category per PR.
+- `flutter test` must pass before requesting review.
 
 ## Recommended branch protection (repo admin)
 
-Branch protection can't be configured from the codebase — set it once in the
-GitHub UI under **Settings → Branches → Add branch ruleset** for `main`:
+Branch protection not configurable from codebase. Set once in GitHub UI under
+**Settings → Branches → Add branch ruleset** for `main`:
 
 - Require a pull request before merging.
 - Require status checks to pass (the deploy/build workflow).
