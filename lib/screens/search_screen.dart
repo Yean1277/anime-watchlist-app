@@ -16,7 +16,11 @@ import '../widgets/screen_header.dart';
 /// watchlist. While the query is empty it shows the current top-airing set so
 /// covers appear immediately (FDS v1.1).
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  /// [jikan] lets tests inject a fake service. When null the screen owns a
+  /// real [JikanService] and disposes it (see [_SearchScreenState.dispose]).
+  const SearchScreen({super.key, this.jikan});
+
+  final JikanService? jikan;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -25,17 +29,46 @@ class SearchScreen extends StatefulWidget {
 /// Why a search failed, so the UI can suggest the right remedy.
 enum _SearchError { rateLimited, network, other }
 
+/// The search tab's mutually exclusive display states. Modeling them as one
+/// sealed value (rather than separate `_loading` / `_error` / `_results`
+/// fields) makes the invalid "error and results at once" combination
+/// unrepresentable, so a stale failure can never mask a newer success —
+/// consistent with the sealed-class style in `jikan_service.dart`.
+sealed class _SearchState {
+  const _SearchState();
+}
+
+/// A search is in flight; show a spinner.
+class _SearchLoading extends _SearchState {
+  const _SearchLoading();
+}
+
+/// The most recent search failed; [error] says how, so we can suggest a remedy.
+class _SearchFailed extends _SearchState {
+  const _SearchFailed(this.error);
+  final _SearchError error;
+}
+
+/// A search completed. An empty [results] renders the "no results" message; a
+/// non-empty one renders the list.
+class _SearchResults extends _SearchState {
+  const _SearchResults(this.results);
+  final List<Anime> results;
+}
+
 class _SearchScreenState extends State<SearchScreen> {
-  final JikanService _jikan = JikanService();
+  late final JikanService _jikan;
+  late final bool _ownsJikan;
   final TextEditingController _controller = TextEditingController();
   Timer? _debounce;
 
-  List<Anime> _results = [];
-  bool _loading = false;
-  _SearchError? _error;
+  /// The one source of truth for what the search area shows. Starts empty; while
+  /// the query is blank `_buildIdle()` renders instead, so this is never seen
+  /// blank on first paint.
+  _SearchState _state = const _SearchResults([]);
 
   /// Monotonic token so a slow, stale response can never overwrite the
-  /// results (or cleared state) of a newer query.
+  /// state of a newer query.
   int _searchGeneration = 0;
 
   /// Idle-state content: the current top-airing ranking.
@@ -48,6 +81,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    // Own (and later dispose) the service only when the caller didn't inject
+    // one — matching JikanService's own dispose-if-owned contract.
+    _ownsJikan = widget.jikan == null;
+    _jikan = widget.jikan ?? JikanService();
     _loadTopAiring();
   }
 
@@ -55,7 +92,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
-    _jikan.dispose();
+    if (_ownsJikan) _jikan.dispose();
     super.dispose();
   }
 
@@ -100,24 +137,16 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _search(String query) async {
     final gen = ++_searchGeneration;
     if (query.trim().isEmpty) {
-      setState(() {
-        _results = [];
-        _error = null;
-        _loading = false;
-      });
+      setState(() => _state = const _SearchResults([]));
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _state = const _SearchLoading());
     try {
       final results = await _jikan.search(query);
       if (!mounted || gen != _searchGeneration) return;
-      setState(() {
-        _results = results;
-        _loading = false;
-      });
+      // Assigning the whole state wholly replaces any prior _SearchFailed, so a
+      // superseded error can't linger behind these fresh results.
+      setState(() => _state = _SearchResults(results));
     } on JikanRateLimitException {
       _fail(gen, _SearchError.rateLimited);
     } on JikanNetworkException {
@@ -129,10 +158,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _fail(int gen, _SearchError error) {
     if (!mounted || gen != _searchGeneration) return;
-    setState(() {
-      _error = error;
-      _loading = false;
-    });
+    setState(() => _state = _SearchFailed(error));
   }
 
   Future<void> _add(Anime anime) async {
@@ -242,27 +268,27 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSearch() {
-    if (_loading) {
-      return const Center(
-          child: CircularProgressIndicator(color: AppColor.accent));
+    switch (_state) {
+      case _SearchLoading():
+        return const Center(
+            child: CircularProgressIndicator(color: AppColor.accent));
+      case _SearchFailed(:final error):
+        return _errorMessage(error, onRetry: () => _search(_controller.text));
+      case _SearchResults(:final results):
+        if (results.isEmpty) {
+          return _message(
+            icon: Icons.travel_explore_rounded,
+            furigana: 'みつかりません',
+            title: 'No results for "${_controller.text.trim()}"',
+            body: 'Try a different word.',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 4, bottom: 110),
+          itemCount: results.length,
+          itemBuilder: (context, index) => _resultRow(results[index]),
+        );
     }
-    if (_error != null) {
-      return _errorMessage(_error!,
-          onRetry: () => _search(_controller.text));
-    }
-    if (_results.isEmpty) {
-      return _message(
-        icon: Icons.travel_explore_rounded,
-        furigana: 'みつかりません',
-        title: 'No results for "${_controller.text.trim()}"',
-        body: 'Try a different word.',
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 110),
-      itemCount: _results.length,
-      itemBuilder: (context, index) => _resultRow(_results[index]),
-    );
   }
 
   Widget _errorMessage(_SearchError error, {required VoidCallback onRetry}) {
