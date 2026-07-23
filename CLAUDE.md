@@ -109,3 +109,51 @@ categories as commits (`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`,
 - [docs/API_DESIGN.md](docs/API_DESIGN.md) — API contracts, error taxonomy, retry/timeout policies
 - [docs/DECISIONS.md](docs/DECISIONS.md) — why the key choices were made
 - [CHANGELOG.md](CHANGELOG.md) — what changed, by version
+
+
+## Cloud session environment (Claude Code on the web)
+
+This repo ships **Dart source only** — no native platform folders. In cloud
+sessions, `web/` is generated at session start by
+`scripts/flutter_bootstrap.sh` (SessionStart hook) and is gitignored.
+
+### Rules
+
+- **Never commit `web/`, `.dart_tool/`, `build/`, or `.env`.** They're
+  generated per session and are in `.gitignore`.
+- **Never run bare `flutter create`.** It overwrites `lib/main.dart` and
+  `pubspec.yaml` with Flutter's template. The bootstrap script already runs it
+  with a `git checkout -- lib/ pubspec.yaml` immediately after. If you must
+  regenerate, follow the same pattern.
+- **Don't edit `pubspec.yaml` to add deps by hand.** Use
+  `flutter pub add <package>` so the lockfile stays consistent.
+
+### Commands
+
+| Task | Command |
+|---|---|
+| Static analysis | `flutter analyze` |
+| Unit tests | `flutter test` |
+| Web build (verify compile) | `flutter build web --release` |
+| Format | `dart format lib/ test/` |
+
+Flutter lives at `/opt/flutter/bin` and is on `PATH`. If `flutter: command not
+found`, run `export PATH="/opt/flutter/bin:$PATH"`.
+
+### Verifying changes
+
+There's no emulator or browser in a cloud session, so you can't click through
+the UI. Verify with:
+
+1. `flutter analyze` — must be clean
+2. `flutter test` — must pass
+3. `flutter build web --release` — catches compile errors `analyze` misses
+
+Don't claim a UI change works without at least a successful web build.
+
+### Backend
+
+`.env` is empty by default → the app runs in **demo mode** (in-memory
+watchlist, real Jikan API for search). Supabase calls are not exercised unless
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` are set in the environment settings.
+Assume demo mode when reasoning about runtime behaviour.
