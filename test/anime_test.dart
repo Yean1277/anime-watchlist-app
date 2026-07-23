@@ -56,5 +56,30 @@ void main() {
       });
       expect(anime.genres, ['Action']);
     });
+
+    test('skips non-map genre entries and keeps well-formed ones', () {
+      final anime = Anime.fromJson({
+        'mal_id': 1,
+        'title': 'X',
+        'genres': [
+          'Action', // bare string — not a genre object
+          null, // null entry
+          42, // number
+          {'mal_id': 1, 'name': 'Adventure'},
+        ],
+      });
+      expect(anime.genres, ['Adventure']);
+    });
+
+    test('returns normally with a missing mal_id, defaulting to 0', () {
+      final anime = Anime.fromJson({
+        'title': 'X',
+        'genres': [
+          {'mal_id': 1, 'name': 'Comedy'},
+        ],
+      });
+      expect(anime.malId, 0);
+      expect(anime.genres, ['Comedy']);
+    });
   });
 }

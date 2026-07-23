@@ -25,7 +25,7 @@ class Anime {
     final jpg = images?['jpg'] as Map<String, dynamic>?;
     final genresJson = (json['genres'] as List<dynamic>?) ?? const [];
     return Anime(
-      malId: (json['mal_id'] as num).toInt(),
+      malId: (json['mal_id'] as num?)?.toInt() ?? 0,
       title: json['title'] is String ? json['title'] as String : 'Unknown',
       titleJapanese: json['title_japanese'] as String?,
       imageUrl: jpg?['image_url'] as String?,
@@ -33,7 +33,8 @@ class Anime {
       score: (json['score'] as num?)?.toDouble(),
       airing: (json['airing'] as bool?) ?? false,
       genres: genresJson
-          .map((g) => (g as Map<String, dynamic>)['name'] as String? ?? '')
+          .whereType<Map<String, dynamic>>()
+          .map((g) => g['name'] as String? ?? '')
           .where((g) => g.isNotEmpty)
           .toList(),
     );
