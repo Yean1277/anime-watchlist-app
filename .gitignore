@@ -28,3 +28,9 @@ windows/
 # Misc
 .DS_Store
 *.log
+
+# Claude Code cloud session folders
+/web/
+/.dart_tool/
+/build/
+.env
