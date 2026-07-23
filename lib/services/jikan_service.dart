@@ -204,9 +204,13 @@ class JikanService {
     for (final item in data) {
       if (item is! Map<String, dynamic>) continue;
       if (item['mal_id'] is! int) continue;
-      final anime = Anime.fromJson(item);
-      if (seen.add(anime.malId)) {
-        results.add(anime);
+      try {
+        final anime = Anime.fromJson(item);
+        if (seen.add(anime.malId)) {
+          results.add(anime);
+        }
+      } catch (_) {
+        continue; // skip a malformed entry rather than failing the batch
       }
     }
     return results;
