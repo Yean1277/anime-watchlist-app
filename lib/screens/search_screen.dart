@@ -26,9 +26,6 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-/// Why a search failed, so the UI can suggest the right remedy.
-enum _SearchError { rateLimited, network, other }
-
 /// The search tab's mutually exclusive display states. Modeling them as one
 /// sealed value (rather than separate `_loading` / `_error` / `_results`
 /// fields) makes the invalid "error and results at once" combination
@@ -43,10 +40,11 @@ class _SearchLoading extends _SearchState {
   const _SearchLoading();
 }
 
-/// The most recent search failed; [error] says how, so we can suggest a remedy.
+/// The most recent search failed; [error] is the typed cause (or null for an
+/// unexpected non-Jikan error), so we can suggest the right remedy.
 class _SearchFailed extends _SearchState {
   const _SearchFailed(this.error);
-  final _SearchError error;
+  final JikanException? error;
 }
 
 /// A search completed. An empty [results] renders the "no results" message; a
@@ -74,7 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
   /// Idle-state content: the current top-airing ranking.
   List<Anime> _topAiring = [];
   bool _topLoading = true;
-  _SearchError? _topError;
+  JikanException? _topError;
 
   bool get _idle => _controller.text.trim().isEmpty;
 
@@ -108,22 +106,16 @@ class _SearchScreenState extends State<SearchScreen> {
         _topAiring = results;
         _topLoading = false;
       });
-    } on JikanRateLimitException {
+    } on JikanException catch (e) {
       if (!mounted) return;
       setState(() {
-        _topError = _SearchError.rateLimited;
-        _topLoading = false;
-      });
-    } on JikanNetworkException {
-      if (!mounted) return;
-      setState(() {
-        _topError = _SearchError.network;
+        _topError = e;
         _topLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _topError = _SearchError.other;
+        _topError = null; // unexpected non-Jikan error → generic remedy
         _topLoading = false;
       });
     }
@@ -147,16 +139,14 @@ class _SearchScreenState extends State<SearchScreen> {
       // Assigning the whole state wholly replaces any prior _SearchFailed, so a
       // superseded error can't linger behind these fresh results.
       setState(() => _state = _SearchResults(results));
-    } on JikanRateLimitException {
-      _fail(gen, _SearchError.rateLimited);
-    } on JikanNetworkException {
-      _fail(gen, _SearchError.network);
+    } on JikanException catch (e) {
+      _fail(gen, e);
     } catch (_) {
-      _fail(gen, _SearchError.other);
+      _fail(gen, null); // unexpected non-Jikan error → generic remedy
     }
   }
 
-  void _fail(int gen, _SearchError error) {
+  void _fail(int gen, JikanException? error) {
     if (!mounted || gen != _searchGeneration) return;
     setState(() => _state = _SearchFailed(error));
   }
@@ -259,8 +249,7 @@ class _SearchScreenState extends State<SearchScreen> {
       itemCount: _topAiring.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
-          return const FuriganaHeader(
-              furigana: 'ほうそうちゅう', title: 'Top airing');
+          return const FuriganaHeader(furigana: 'ほうそうちゅう', title: 'Top airing');
         }
         return _resultRow(_topAiring[index - 1]);
       },
@@ -291,34 +280,43 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Widget _errorMessage(_SearchError error, {required VoidCallback onRetry}) {
-    switch (error) {
-      case _SearchError.rateLimited:
-        return _message(
+  /// Maps the typed failure to a remedy the user can act on. Switching over the
+  /// `sealed` [JikanException] keeps this exhaustive — a new subtype becomes a
+  /// compile error here rather than silently reusing the generic fallback. The
+  /// `null` arm covers an unexpected non-Jikan error. Raw status codes are kept
+  /// out of the copy (they're for logs); nothing here blames the user.
+  Widget _errorMessage(JikanException? error, {required VoidCallback onRetry}) {
+    return switch (error) {
+      JikanRateLimitException() => _message(
           icon: Icons.hourglass_top_rounded,
           furigana: 'ちょっとまって',
           title: 'Too many requests.',
           body: 'MyAnimeList is rate-limiting us — wait a moment, '
               'then try again.',
           onRetry: onRetry,
-        );
-      case _SearchError.network:
-        return _message(
+        ),
+      JikanNetworkException() => _message(
           icon: Icons.cloud_off_rounded,
           furigana: 'つうしんエラー',
           title: "Couldn't reach MyAnimeList.",
           body: 'Check your connection and try again.',
           onRetry: onRetry,
-        );
-      case _SearchError.other:
-        return _message(
-          icon: Icons.cloud_off_rounded,
-          furigana: 'つうしんエラー',
+        ),
+      JikanApiException() => _message(
+          icon: Icons.dns_rounded,
+          furigana: 'サーバーエラー',
+          title: 'MyAnimeList is having trouble.',
+          body: 'Their servers hiccuped — try again shortly.',
+          onRetry: onRetry,
+        ),
+      null => _message(
+          icon: Icons.error_outline_rounded,
+          furigana: 'エラー',
           title: 'Something went wrong.',
           body: 'Try again in a moment.',
           onRetry: onRetry,
-        );
-    }
+        ),
+    };
   }
 
   Widget _resultRow(Anime anime) {
